@@ -1,8 +1,25 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ToastAndroid, Platform, Alert } from 'react-native';
-import { Appbar, TextInput, Button, HelperText } from 'react-native-paper';
+import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { Text, TextInput, Button, HelperText, IconButton, useTheme } from 'react-native-paper';
 import * as expoRouter from 'expo-router';
 import { addTodo } from '../services/storage';
+
+// Custom theme colors
+const customColors = {
+  primary: '#4A8FE7', // Main blue
+  accent: '#5D9CEC', // Slightly lighter blue
+  background: '#F5F7FA', // Light background
+  surface: '#FFFFFF', // Card surface
+  error: '#FF5252', // Error red
+  priorityHigh: '#FF7676', // Red for high priority
+  priorityMedium: '#FFBB54', // Orange for medium priority
+  priorityLow: '#58C9B9', // Teal for low priority
+  textPrimary: '#2C384A', // Dark text
+  textSecondary: '#7D8FA9', // Lighter text
+  disabled: '#BEC4CD', // Disabled state
+  inputBackground: '#FFFFFF',
+  inputBorder: '#E5E9F2',
+};
 
 // Create a router instance that we can type-cast when needed
 const router = expoRouter.router;
@@ -12,6 +29,8 @@ const AddTodoScreen = () => {
   const [description, setDescription] = useState('');
   const [titleError, setTitleError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [priority, setPriority] = useState('medium'); // 'high', 'medium', 'low'
+  const theme = useTheme();
 
   const validateForm = (): boolean => {
     if (!title.trim()) {
@@ -63,81 +82,242 @@ const AddTodoScreen = () => {
     }
   };
 
+  // Function to get color based on priority
+  const getPriorityColor = (selectedPriority: string): string => {
+    switch(selectedPriority) {
+      case 'high':
+        return customColors.priorityHigh;
+      case 'medium':
+        return customColors.priorityMedium;
+      case 'low':
+        return customColors.priorityLow;
+      default:
+        return customColors.priorityMedium;
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={handleGoBack} />
-        <Appbar.Content title="Add New Todo" />
-      </Appbar.Header>
+    <SafeAreaView style={[styles.container, { backgroundColor: customColors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={customColors.background} />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={styles.keyboardAvoid}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              iconColor={customColors.textPrimary}
+              onPress={handleGoBack}
+              style={styles.backButton}
+            />
+            <Text style={styles.headerTitle}>New Task</Text>
+          </View>
 
-      <View style={styles.form}>
-        <TextInput
-          label="Title"
-          value={title}
-          onChangeText={(text) => {
-            setTitle(text);
-            if (text.trim()) setTitleError('');
-          }}
-          mode="outlined"
-          style={styles.input}
-          error={!!titleError}
-        />
-        {!!titleError && (
-          <HelperText type="error" visible={!!titleError}>
-            {titleError}
-          </HelperText>
-        )}
+          <View style={styles.form}>
+            {/* Title Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Title</Text>
+              <TextInput
+                value={title}
+                onChangeText={(text) => {
+                  setTitle(text);
+                  if (text.trim()) setTitleError('');
+                }}
+                mode="outlined"
+                outlineColor={customColors.inputBorder}
+                activeOutlineColor={customColors.primary}
+                style={[styles.input, { backgroundColor: customColors.inputBackground }]}
+                error={!!titleError}
+                placeholder="What do you need to do?"
+                placeholderTextColor={customColors.disabled}
+              />
+              {!!titleError && (
+                <HelperText type="error" visible={!!titleError}>
+                  {titleError}
+                </HelperText>
+              )}
+            </View>
 
-        <TextInput
-          label="Description"
-          value={description}
-          onChangeText={setDescription}
-          mode="outlined"
-          multiline
-          numberOfLines={4}
-          style={styles.input}
-        />
+            {/* Description Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                mode="outlined"
+                outlineColor={customColors.inputBorder}
+                activeOutlineColor={customColors.primary}
+                style={[
+                  styles.input, 
+                  styles.textArea, 
+                  { backgroundColor: customColors.inputBackground }
+                ]}
+                multiline
+                numberOfLines={4}
+                placeholder="Add details about your task..."
+                placeholderTextColor={customColors.disabled}
+              />
+            </View>
 
-        <View style={styles.buttonContainer}>
-          <Button 
-            mode="outlined" 
-            onPress={handleGoBack} 
-            style={styles.button}
-          >
-            Cancel
-          </Button>
-          <Button 
-            mode="contained" 
-            onPress={handleSave} 
-            style={styles.button}
-            disabled={isSubmitting || !title.trim()}
-            loading={isSubmitting}
-          >
-            Save
-          </Button>
-        </View>
-      </View>
-    </View>
+            {/* Priority Selection */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Priority</Text>
+              <View style={styles.priorityContainer}>
+                <TouchablePriority 
+                  label="High" 
+                  color={customColors.priorityHigh}
+                  isSelected={priority === 'high'}
+                  onPress={() => setPriority('high')}
+                />
+                <TouchablePriority 
+                  label="Medium" 
+                  color={customColors.priorityMedium}
+                  isSelected={priority === 'medium'}
+                  onPress={() => setPriority('medium')}
+                />
+                <TouchablePriority 
+                  label="Low" 
+                  color={customColors.priorityLow}
+                  isSelected={priority === 'low'}
+                  onPress={() => setPriority('low')}
+                />
+              </View>
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <Button 
+                mode="outlined" 
+                onPress={handleGoBack} 
+                style={[styles.button, styles.cancelButton]}
+                labelStyle={{ color: customColors.textPrimary }}
+                contentStyle={styles.buttonContent}
+              >
+                Cancel
+              </Button>
+              <Button 
+                mode="contained" 
+                onPress={handleSave} 
+                style={[
+                  styles.button, 
+                  styles.saveButton, 
+                  { backgroundColor: customColors.primary }
+                ]}
+                labelStyle={{ color: '#FFFFFF' }}
+                contentStyle={styles.buttonContent}
+                disabled={isSubmitting || !title.trim()}
+                loading={isSubmitting}
+              >
+                Save
+              </Button>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
+
+// Priority selection component
+interface TouchablePriorityProps {
+  label: string;
+  color: string;
+  isSelected: boolean;
+  onPress: () => void;
+}
+
+const TouchablePriority = ({ label, color, isSelected, onPress }: TouchablePriorityProps) => (
+  <Button
+    mode={isSelected ? 'contained' : 'outlined'}
+    onPress={onPress}
+    style={[
+      styles.priorityButton,
+      isSelected && { backgroundColor: color }
+    ]}
+    labelStyle={{
+      color: isSelected ? '#FFFFFF' : color,
+      fontSize: 14,
+    }}
+    contentStyle={{ height: 36 }}
+  >
+    {label}
+  </Button>
+);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  backButton: {
+    margin: 0,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: customColors.textPrimary,
+    marginLeft: 8,
+  },
   form: {
-    padding: 16,
+    padding: 24,
+  },
+  inputGroup: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: customColors.textPrimary,
+    marginBottom: 8,
   },
   input: {
-    marginBottom: 8,
+    backgroundColor: customColors.inputBackground,
+    fontSize: 16,
+  },
+  textArea: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  priorityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  priorityButton: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 8,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 32,
   },
   button: {
     width: '48%',
+    borderRadius: 8,
+  },
+  buttonContent: {
+    paddingVertical: 8,
+  },
+  cancelButton: {
+    borderColor: customColors.inputBorder,
+  },
+  saveButton: {
+    elevation: 2,
   },
 });
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { Appbar, FAB, Snackbar } from 'react-native-paper';
+import { View, StyleSheet, ActivityIndicator, Text, SafeAreaView, StatusBar } from 'react-native';
+import { Appbar, FAB, Snackbar, Surface, useTheme, Avatar } from 'react-native-paper';
 import * as expoRouter from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import TodoList from '../components/TodoList';
@@ -9,11 +9,41 @@ import { getTodos, deleteTodo, toggleTodoCompletion, Todo } from '../services/st
 // Create a router instance that we can type-cast when needed
 const router = expoRouter.router;
 
+// Custom theme
+const customColors = {
+  primary: '#4A8FE7', // Main blue
+  accent: '#5D9CEC', // Slightly lighter blue
+  background: '#F5F7FA', // Light background
+  surface: '#FFFFFF', // Card surface
+  error: '#FF5252', // Error red
+  priorityHigh: '#FF7676', // Red for high priority
+  priorityMedium: '#FFBB54', // Orange for medium priority
+  priorityLow: '#58C9B9', // Teal for low priority
+  textPrimary: '#2C384A', // Dark text
+  textSecondary: '#7D8FA9', // Lighter text
+  disabled: '#BEC4CD', // Disabled state
+};
+
+const getDayName = () => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[new Date().getDay()];
+};
+
+const getMonthName = () => {
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[new Date().getMonth()];
+};
+
+const getDate = () => {
+  return new Date().getDate();
+};
+
 const HomeScreen = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const theme = useTheme();
 
   // Load todos on initial mount
   useEffect(() => {
@@ -92,23 +122,39 @@ const HomeScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.Content title="My Todo List" />
-        <Appbar.Action 
-          icon="refresh" 
-          onPress={loadTodos} 
-        />
-        <Appbar.Action 
-          icon="cog" 
-          onPress={handleOpenNestedExample} 
-        />
-      </Appbar.Header>
+    <SafeAreaView style={[styles.container, { backgroundColor: customColors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={customColors.background} />
+      
+      {/* Header with date */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Today</Text>
+          <Text style={styles.headerSubtitle}>
+            {getMonthName()} {getDate()} • {getDayName()}
+          </Text>
+        </View>
+        <View style={styles.headerActions}>
+          <Avatar.Icon 
+            size={40} 
+            icon="refresh" 
+            style={styles.headerIcon} 
+            color={customColors.textPrimary}
+            onTouchEnd={loadTodos}
+          />
+          <Avatar.Icon 
+            size={40} 
+            icon="cog" 
+            style={styles.headerIcon} 
+            color={customColors.textPrimary}
+            onTouchEnd={handleOpenNestedExample}
+          />
+        </View>
+      </View>
       
       <View style={styles.content}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color={customColors.primary} />
           </View>
         ) : (
           <TodoList 
@@ -120,9 +166,9 @@ const HomeScreen = () => {
       </View>
       
       <FAB
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: customColors.primary }]}
         icon="plus"
-        label="Add Todo"
+        color="#FFFFFF"
         onPress={handleAddTodo}
       />
       
@@ -130,14 +176,16 @@ const HomeScreen = () => {
         visible={snackbarVisible}
         onDismiss={onDismissSnackbar}
         duration={3000}
+        style={styles.snackbar}
         action={{
           label: 'Dismiss',
           onPress: onDismissSnackbar,
+          color: customColors.primary,
         }}
       >
         {snackbarMessage}
       </Snackbar>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -145,25 +193,51 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: customColors.textPrimary,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: customColors.textSecondary,
+    marginTop: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+  },
+  headerIcon: {
+    backgroundColor: 'transparent',
+    marginLeft: 8,
+  },
   content: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
+    borderRadius: 30,
+  },
+  snackbar: {
+    backgroundColor: customColors.surface,
+    color: customColors.textPrimary,
+    marginBottom: 16,
   },
 });
 

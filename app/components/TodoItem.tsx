@@ -1,13 +1,45 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Title, Paragraph, IconButton, useTheme } from 'react-native-paper';
+import { Card, Title, Paragraph, IconButton, useTheme, Surface, Text } from 'react-native-paper';
 import { Todo } from '../services/storage';
+
+// Custom theme colors
+const customColors = {
+  primary: '#4A8FE7', // Main blue
+  accent: '#5D9CEC', // Slightly lighter blue
+  background: '#F5F7FA', // Light background
+  surface: '#FFFFFF', // Card surface
+  error: '#FF5252', // Error red
+  priorityHigh: '#FF7676', // Red for high priority
+  priorityMedium: '#FFBB54', // Orange for medium priority
+  priorityLow: '#58C9B9', // Teal for low priority
+  textPrimary: '#2C384A', // Dark text
+  textSecondary: '#7D8FA9', // Lighter text
+  disabled: '#BEC4CD', // Disabled state
+};
 
 interface TodoItemProps {
   todo: Todo;
   onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
 }
+
+// Function to determine priority color based on id to simulate different priorities
+const getPriorityColor = (id: string): string => {
+  const idNum = parseInt(id, 10) || 0;
+  const remainder = idNum % 3;
+  
+  switch(remainder) {
+    case 0:
+      return customColors.priorityHigh;
+    case 1:
+      return customColors.priorityMedium;
+    case 2:
+      return customColors.priorityLow;
+    default:
+      return customColors.priorityMedium;
+  }
+};
 
 const TodoItem = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
   const [expanded, setExpanded] = useState(false);
@@ -18,89 +50,129 @@ const TodoItem = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
   };
 
   return (
-    <Card style={styles.card}>
-      <TouchableOpacity onPress={toggleExpanded}>
-        <Card.Content style={styles.headerContainer}>
-          <View style={styles.titleContainer}>
-            <Title style={[
-              styles.title,
-              todo.isCompleted && styles.completedTitle
-            ]}>
-              {todo.title}
-            </Title>
-            <IconButton
-              icon={expanded ? 'chevron-up' : 'chevron-down'}
-              size={24}
-              onPress={toggleExpanded}
-            />
-          </View>
-        </Card.Content>
-      </TouchableOpacity>
-
-      {expanded && (
-        <View>
-          {todo.description && (
-            <Card.Content>
-              <Paragraph style={[
-                styles.description,
-                todo.isCompleted && styles.completedDescription
-              ]}>
-                {todo.description}
-              </Paragraph>
-            </Card.Content>
-          )}
+    <Surface style={styles.surface}>
+      <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
+        <View style={styles.todoItem}>
+          {/* Priority Circle */}
+          <TouchableOpacity 
+            onPress={() => onToggleComplete(todo.id)}
+            style={[
+              styles.priorityCircle, 
+              { 
+                backgroundColor: todo.isCompleted 
+                  ? customColors.disabled 
+                  : getPriorityColor(todo.id)
+              }
+            ]}
+          >
+            {todo.isCompleted && (
+              <IconButton 
+                icon="check" 
+                size={16} 
+                iconColor="#FFFFFF"
+                style={styles.checkIcon}
+              />
+            )}
+          </TouchableOpacity>
           
-          <Card.Actions style={styles.actions}>
-            <IconButton
-              icon={todo.isCompleted ? 'check-circle' : 'check-circle-outline'}
-              iconColor={todo.isCompleted ? theme.colors.primary : theme.colors.onSurfaceVariant}
-              size={24}
-              onPress={() => onToggleComplete(todo.id)}
-            />
-            <IconButton
-              icon="delete"
-              iconColor={theme.colors.error}
-              size={24}
-              onPress={() => onDelete(todo.id)}
-            />
-          </Card.Actions>
+          {/* Content */}
+          <View style={styles.content}>
+            <Text 
+              style={[
+                styles.title,
+                todo.isCompleted && styles.completedTitle
+              ]}
+              numberOfLines={expanded ? undefined : 1}
+            >
+              {todo.title}
+            </Text>
+            
+            {todo.description && (
+              <Text 
+                style={[
+                  styles.description,
+                  todo.isCompleted && styles.completedDescription
+                ]}
+                numberOfLines={expanded ? undefined : 1}
+              >
+                {todo.description}
+              </Text>
+            )}
+            
+            {expanded && (
+              <View style={styles.actions}>
+                <IconButton
+                  icon="delete"
+                  iconColor={customColors.error}
+                  size={20}
+                  onPress={() => onDelete(todo.id)}
+                  style={styles.deleteButton}
+                />
+              </View>
+            )}
+          </View>
         </View>
-      )}
-    </Card>
+      </TouchableOpacity>
+    </Surface>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    marginVertical: 8,
-    elevation: 2,
+  surface: {
+    elevation: 1,
+    borderRadius: 12,
+    marginVertical: 6,
+    backgroundColor: customColors.surface,
+    overflow: 'hidden',
   },
-  headerContainer: {
-    paddingVertical: 8,
-  },
-  titleContainer: {
+  todoItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    padding: 16,
+    alignItems: 'flex-start',
+  },
+  priorityCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 16,
+    marginTop: 2,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
+  checkIcon: {
+    margin: 0,
+    padding: 0,
+  },
+  content: {
     flex: 1,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: customColors.textPrimary,
+    marginBottom: 4,
   },
   completedTitle: {
     textDecorationLine: 'line-through',
-    opacity: 0.5,
+    color: customColors.textSecondary,
   },
   description: {
-    marginTop: 8,
+    fontSize: 14,
+    color: customColors.textSecondary,
+    lineHeight: 20,
   },
   completedDescription: {
     textDecorationLine: 'line-through',
-    opacity: 0.5,
+    opacity: 0.7,
   },
   actions: {
+    flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingHorizontal: 8,
+    marginTop: 8,
   },
+  deleteButton: {
+    margin: 0,
+  }
 });
 
 export default TodoItem; 

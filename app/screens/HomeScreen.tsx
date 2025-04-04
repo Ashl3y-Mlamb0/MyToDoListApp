@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Appbar, FAB } from 'react-native-paper';
+import { router } from 'expo-router';
 import TodoList, { Todo } from '../components/TodoList';
 
 const HomeScreen = () => {
@@ -26,6 +27,10 @@ const HomeScreen = () => {
     },
   ];
 
+  const handleAddTodo = () => {
+    router.push('/add');
+  };
+
   return (
     <View style={styles.container}>
       <Appbar.Header>
@@ -44,7 +49,7 @@ const HomeScreen = () => {
         style={styles.fab}
         icon="plus"
         label="Add Todo"
-        onPress={() => console.log('Add todo button pressed')}
+        onPress={handleAddTodo}
       />
     </View>
   );

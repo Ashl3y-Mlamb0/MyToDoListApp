@@ -1,7 +1,7 @@
 {
   "name": "mytodolist",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,17 +9,31 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "expo": "~52.0.43",
+    "expo": "^50.0.21",
+    "expo-constants": "^17.0.8",
+    "expo-linking": "^7.0.5",
+    "expo-router": "^3.5.24",
     "expo-status-bar": "~2.0.1",
     "react": "18.3.1",
     "react-native": "0.76.9",
+    "react-native-gesture-handler": "~2.14.0",
     "react-native-paper": "^5.13.1",
-    "react-native-safe-area-context": "^5.3.0"
+    "react-native-safe-area-context": "^4.8.2",
+    "react-native-screens": "~3.29.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
     "typescript": "^5.3.3"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "scheme": "mytodolist",
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
 }

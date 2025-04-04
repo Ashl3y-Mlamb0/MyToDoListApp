@@ -212,6 +212,70 @@ This document outlines the step-by-step development plan for our Todo List app. 
    git add .
    git commit -m "Add user profile functionality"
    ```
+
+**Settings Page**
+1. Create settings screen structure
+   - Implement main settings layout
+   - Add section headers using List.Accordion
+   - Set up navigation to settings screen
+   ```bash
+   git add .
+   git commit -m "Create settings screen structure"
+   ```
+
+2. Implement theme & UI preferences
+   - Add light/dark mode toggle
+   - Create accent color picker
+   - Add font size adjustment
+   ```bash
+   git add .
+   git commit -m "Implement theme & UI preferences"
+   ```
+
+3. Add account management settings
+   - Create account-related options
+   - Implement logout functionality
+   - Add password change and email update
+   ```bash
+   git add .
+   git commit -m "Add account management settings"
+   ```
+
+4. Implement app behavior settings
+   - Add notification toggles
+   - Create default sort method selector
+   - Implement task view mode toggle
+   ```bash
+   git add .
+   git commit -m "Implement app behavior settings"
+   ```
+
+5. Add AI settings section
+   - Create AI-related toggles and options
+   - Implement clear AI history functionality
+   ```bash
+   git add .
+   git commit -m "Add AI settings section"
+   ```
+
+6. Implement language & region settings
+   - Add language selector
+   - Create time format toggle
+   ```bash
+   git add .
+   git commit -m "Implement language & region settings"
+   ```
+
+7. Add developer options & legal information
+   - Create beta features toggle
+   - Add reset app data functionality
+   - Include privacy policy and terms links
+   - Display app version information
+   ```bash
+   git add .
+   git commit -m "Add developer options & legal information"
+   ```
+
 **AI Integration**
 1. Implement DeepSeek AI integration
    - Set up API client

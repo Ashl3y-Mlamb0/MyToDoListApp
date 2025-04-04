@@ -16,7 +16,7 @@ declare module "expo-router" {
       "/": {};
       "/home": {};
       "/add": {};
-      "/nested-stack": {};
+      "/settings": {};
     }
   }
 } 

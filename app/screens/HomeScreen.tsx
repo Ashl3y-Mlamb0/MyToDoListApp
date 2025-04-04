@@ -75,9 +75,9 @@ const HomeScreen = () => {
     (router as any).push('/add');
   };
 
-  const handleOpenNestedExample = () => {
+  const handleOpenSettings = () => {
     // Use any type as a workaround for TypeScript issues
-    (router as any).push('/nested-stack');
+    (router as any).push('/settings');
   };
 
   const handleToggleComplete = async (id: string) => {
@@ -146,7 +146,7 @@ const HomeScreen = () => {
             icon="cog" 
             style={styles.headerIcon} 
             color={customColors.textPrimary}
-            onTouchEnd={handleOpenNestedExample}
+            onTouchEnd={handleOpenSettings}
           />
         </View>
       </View>

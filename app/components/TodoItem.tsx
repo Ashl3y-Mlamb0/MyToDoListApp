@@ -66,10 +66,39 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }:
   };
 
   const handleEdit = () => {
-    router.push({
-      pathname: '/edit',
-      params: { id: todo.id }
-    } as any);
+    router.push(`/edit?id=${todo.id}` as any);
+  };
+
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Check if date is today
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    }
+    // Check if date is tomorrow
+    else if (date.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow';
+    }
+    // Otherwise show date
+    else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+  };
+
+  const isOverdue = (dateString?: string): boolean => {
+    if (!dateString) return false;
+    const deadlineDate = new Date(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of today
+    return deadlineDate < today && !todo.isCompleted;
   };
 
   return (
@@ -122,6 +151,27 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }:
               >
                 {todo.description}
               </Text>
+            )}
+
+            {todo.deadline && (
+              <View style={styles.deadlineContainer}>
+                <IconButton
+                  icon="clock-outline"
+                  size={14}
+                  iconColor={isOverdue(todo.deadline) ? customColors.priorityHigh : customColors.textSecondary}
+                  style={styles.deadlineIcon}
+                />
+                <Text 
+                  style={[
+                    styles.deadlineText,
+                    isOverdue(todo.deadline) && styles.overdueText,
+                    todo.isCompleted && styles.completedDescription
+                  ]}
+                >
+                  {formatDate(todo.deadline)}
+                  {isOverdue(todo.deadline) && ' (Overdue)'}
+                </Text>
+              </View>
             )}
             
             {expanded && (
@@ -210,7 +260,25 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     margin: 0,
-  }
+  },
+  deadlineContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  deadlineIcon: {
+    margin: 0,
+    padding: 0,
+    marginRight: -4,
+  },
+  deadlineText: {
+    fontSize: 12,
+    color: customColors.textSecondary,
+  },
+  overdueText: {
+    color: customColors.priorityHigh,
+    fontWeight: '500',
+  },
 });
 
 export default TodoItem; 

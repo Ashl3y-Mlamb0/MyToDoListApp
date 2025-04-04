@@ -4,10 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface Todo {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   isCompleted: boolean;
   createdAt: string; // ISO string
   priority: string;  // 'high', 'medium', 'low'
+  deadline?: string; // Optional deadline date in ISO format
 }
 
 // Storage keys
@@ -35,17 +36,21 @@ export const saveTodos = async (todos: Todo[]): Promise<void> => {
 
 // Add a new todo
 export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt'>): Promise<Todo> => {
-  const newTodo: Todo = {
-    ...todo,
-    id: Date.now().toString(), // Generate a unique ID
-    createdAt: new Date().toISOString(),
-    priority: todo.priority || 'medium', // Default to medium if not specified
-  };
-
   try {
     const todos = await getTodos();
-    const updatedTodos = [...todos, newTodo];
-    await saveTodos(updatedTodos);
+    
+    const newTodo: Todo = {
+      id: Date.now().toString(), // simple ID generation
+      createdAt: new Date().toISOString(),
+      ...todo
+    };
+    
+    // Add the new todo to the array
+    todos.push(newTodo);
+    
+    // Save back to storage
+    await saveTodos(todos);
+    
     return newTodo;
   } catch (error) {
     console.error('Error adding todo:', error);
@@ -122,4 +127,8 @@ export const getTodoById = async (todoId: string): Promise<Todo | null> => {
     console.error('Error getting todo by id:', error);
     return null;
   }
-}; 
+};
+
+// Add a default export to satisfy expo-router's expectations
+// even though this is just a utility file, not a route component
+export default {}; 

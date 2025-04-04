@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, TextInput, Button, HelperText, IconButton, useTheme } from 'react-native-paper';
-import * as expoRouter from 'expo-router';
+import { Text, TextInput, Button, HelperText, IconButton, useTheme, Surface, Divider } from 'react-native-paper';
+import { router, useLocalSearchParams } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getTodoById, updateTodo } from '../services/storage';
 
 // Custom theme colors
 const customColors = {
   primary: '#4A8FE7', // Main blue
+  primaryDark: '#3A7FD7', // Darker blue
   accent: '#5D9CEC', // Slightly lighter blue
   background: '#F5F7FA', // Light background
   surface: '#FFFFFF', // Card surface
@@ -19,12 +22,12 @@ const customColors = {
   disabled: '#BEC4CD', // Disabled state
   inputBackground: '#FFFFFF',
   inputBorder: '#E5E9F2',
+  gradientStart: '#4A8FE7',
+  gradientEnd: '#5D9CEC',
 };
 
-// Create a router instance that we can type-cast when needed
-const router = expoRouter.router;
-
 const EditTodoScreen = () => {
+  const params = useLocalSearchParams();
   const [todoId, setTodoId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -32,22 +35,33 @@ const EditTodoScreen = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priority, setPriority] = useState('medium'); // 'high', 'medium', 'low'
   const [isCompleted, setIsCompleted] = useState(false);
+  const [deadline, setDeadline] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const theme = useTheme();
 
   // Extract todoId from URL params
   useEffect(() => {
-    const params = (router as any).getState()?.routes?.find(
-      (r: any) => r.name === 'edit'
-    )?.params;
-    
-    if (params?.id) {
-      setTodoId(params.id);
-      loadTodo(params.id);
-    } else {
-      // No ID provided, go back
+    try {
+      // Get ID from useLocalSearchParams
+      const id = params.id as string;
+      
+      // If we have a valid ID, use it
+      if (id) {
+        setTodoId(id);
+        loadTodo(id);
+      } else {
+        // No ID provided, go back
+        showToast('No task ID provided');
+        handleGoBack();
+      }
+    } catch (error) {
+      console.error('Error parsing URL params:', error);
+      showToast('Error loading task');
       handleGoBack();
     }
+    // Only run once on mount, not when params changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadTodo = async (id: string) => {
@@ -59,6 +73,9 @@ const EditTodoScreen = () => {
         setDescription(todo.description || '');
         setPriority(todo.priority || 'medium');
         setIsCompleted(todo.isCompleted);
+        if (todo.deadline) {
+          setDeadline(new Date(todo.deadline));
+        }
       } else {
         showToast('Todo not found');
         handleGoBack();
@@ -82,7 +99,7 @@ const EditTodoScreen = () => {
   };
 
   const handleGoBack = () => {
-    (router as any).back();
+    router.back();
   };
 
   const showToast = (message: string) => {
@@ -91,6 +108,31 @@ const EditTodoScreen = () => {
     } else {
       Alert.alert('Success', message);
     }
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setDeadline(selectedDate);
+    }
+  };
+
+  const showDatepicker = () => {
+    setShowDatePicker(true);
+  };
+
+  const clearDeadline = () => {
+    setDeadline(null);
+  };
+
+  const formatDate = (date: Date | null): string => {
+    if (!date) return 'No deadline set';
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const handleSave = async () => {
@@ -107,6 +149,7 @@ const EditTodoScreen = () => {
         isCompleted,
         createdAt: new Date().toISOString(), // This will be overwritten by the existing one
         priority,
+        deadline: deadline ? deadline.toISOString() : undefined,
       });
 
       showToast('Todo updated successfully');
@@ -137,18 +180,55 @@ const EditTodoScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: customColors.background }]}>
-        <StatusBar barStyle="dark-content" backgroundColor={customColors.background} />
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={customColors.primary} />
+        <LinearGradient
+          colors={[customColors.gradientStart, customColors.gradientEnd]}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <View style={styles.header}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              iconColor="#FFFFFF"
+              onPress={handleGoBack}
+              style={styles.backButton}
+            />
+            <Text style={styles.headerTitle}>Edit Task</Text>
+          </View>
+        </LinearGradient>
         <View style={styles.loadingContainer}>
-          <Text>Loading...</Text>
+          <Text style={styles.loadingText}>Loading task details...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: customColors.background }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={customColors.background} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={customColors.primary} />
+      
+      {/* Header with gradient */}
+      <LinearGradient
+        colors={[customColors.gradientStart, customColors.gradientEnd]}
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <View style={styles.header}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            iconColor="#FFFFFF"
+            onPress={handleGoBack}
+            style={styles.backButton}
+          />
+          <Text style={styles.headerTitle}>Edit Task</Text>
+        </View>
+      </LinearGradient>
+
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         style={styles.keyboardAvoid}
@@ -157,22 +237,18 @@ const EditTodoScreen = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <IconButton
-              icon="arrow-left"
-              size={24}
-              iconColor={customColors.textPrimary}
-              onPress={handleGoBack}
-              style={styles.backButton}
-            />
-            <Text style={styles.headerTitle}>Edit Task</Text>
-          </View>
-
-          <View style={styles.form}>
+          <Surface style={styles.formContainer}>
             {/* Title Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Title</Text>
+              <View style={styles.labelContainer}>
+                <IconButton
+                  icon="format-title"
+                  size={20}
+                  iconColor={customColors.primary}
+                  style={styles.inputIcon}
+                />
+                <Text style={styles.label}>Task Title</Text>
+              </View>
               <TextInput
                 value={title}
                 onChangeText={(text) => {
@@ -196,7 +272,15 @@ const EditTodoScreen = () => {
 
             {/* Description Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
+              <View style={styles.labelContainer}>
+                <IconButton
+                  icon="text-box-outline"
+                  size={20}
+                  iconColor={customColors.primary}
+                  style={styles.inputIcon}
+                />
+                <Text style={styles.label}>Description</Text>
+              </View>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
@@ -215,13 +299,85 @@ const EditTodoScreen = () => {
               />
             </View>
 
+            <Divider style={styles.divider} />
+
+            {/* Deadline Date Picker */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <View style={styles.labelContainer}>
+                  <IconButton
+                    icon="calendar-clock"
+                    size={20}
+                    iconColor={customColors.primary}
+                    style={styles.inputIcon}
+                  />
+                  <Text style={styles.label}>Deadline</Text>
+                </View>
+                {deadline && (
+                  <Button 
+                    mode="text" 
+                    onPress={clearDeadline}
+                    compact
+                    icon="close-circle-outline"
+                    style={styles.clearButton}
+                    labelStyle={{ color: customColors.textSecondary, fontSize: 12 }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </View>
+              <TouchableOpacity 
+                onPress={showDatepicker}
+                style={styles.datePickerButton}
+              >
+                <Text style={[
+                  styles.dateText, 
+                  !deadline && styles.dateTextPlaceholder
+                ]}>
+                  {formatDate(deadline)}
+                </Text>
+                <IconButton
+                  icon="calendar"
+                  size={24}
+                  iconColor={customColors.primary}
+                  style={styles.calendarIcon}
+                />
+              </TouchableOpacity>
+              {showDatePicker && (Platform.OS === 'android' ? (
+                <DateTimePicker
+                  value={deadline || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                  minimumDate={new Date()}
+                />
+              ) : (
+                <DateTimePicker
+                  value={deadline || new Date()}
+                  mode="date"
+                  display="spinner"
+                  onChange={onDateChange}
+                  minimumDate={new Date()}
+                />
+              ))}
+            </View>
+
             {/* Completion Status */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Status</Text>
+              <View style={styles.labelContainer}>
+                <IconButton
+                  icon="checkbox-marked-circle-outline"
+                  size={20}
+                  iconColor={customColors.primary}
+                  style={styles.inputIcon}
+                />
+                <Text style={styles.label}>Status</Text>
+              </View>
               <View style={styles.statusContainer}>
                 <Button
                   mode={isCompleted ? 'contained' : 'outlined'}
                   onPress={() => setIsCompleted(true)}
+                  icon={isCompleted ? "check-circle" : "check-circle-outline"}
                   style={[
                     styles.statusButton,
                     isCompleted && { backgroundColor: customColors.primary }
@@ -236,6 +392,7 @@ const EditTodoScreen = () => {
                 <Button
                   mode={!isCompleted ? 'contained' : 'outlined'}
                   onPress={() => setIsCompleted(false)}
+                  icon={!isCompleted ? "circle-outline" : "circle-outline"}
                   style={[
                     styles.statusButton,
                     !isCompleted && { backgroundColor: customColors.primary }
@@ -252,28 +409,41 @@ const EditTodoScreen = () => {
 
             {/* Priority Selection */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Priority</Text>
+              <View style={styles.labelContainer}>
+                <IconButton
+                  icon="flag-outline"
+                  size={20}
+                  iconColor={customColors.primary}
+                  style={styles.inputIcon}
+                />
+                <Text style={styles.label}>Priority Level</Text>
+              </View>
               <View style={styles.priorityContainer}>
                 <TouchablePriority 
                   label="High" 
+                  icon="flag"
                   color={customColors.priorityHigh}
                   isSelected={priority === 'high'}
                   onPress={() => setPriority('high')}
                 />
                 <TouchablePriority 
                   label="Medium" 
+                  icon="flag"
                   color={customColors.priorityMedium}
                   isSelected={priority === 'medium'}
                   onPress={() => setPriority('medium')}
                 />
                 <TouchablePriority 
                   label="Low" 
+                  icon="flag"
                   color={customColors.priorityLow}
                   isSelected={priority === 'low'}
                   onPress={() => setPriority('low')}
                 />
               </View>
             </View>
+
+            <Divider style={styles.divider} />
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>
@@ -283,6 +453,7 @@ const EditTodoScreen = () => {
                 style={[styles.button, styles.cancelButton]}
                 labelStyle={{ color: customColors.textPrimary }}
                 contentStyle={styles.buttonContent}
+                icon="close"
               >
                 Cancel
               </Button>
@@ -294,15 +465,16 @@ const EditTodoScreen = () => {
                   styles.saveButton, 
                   { backgroundColor: customColors.primary }
                 ]}
+                icon="content-save"
                 labelStyle={{ color: '#FFFFFF' }}
                 contentStyle={styles.buttonContent}
                 disabled={isSubmitting || !title.trim()}
                 loading={isSubmitting}
               >
-                Save
+                Save Task
               </Button>
             </View>
-          </View>
+          </Surface>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -312,15 +484,17 @@ const EditTodoScreen = () => {
 // Priority selection component
 interface TouchablePriorityProps {
   label: string;
+  icon?: string;
   color: string;
   isSelected: boolean;
   onPress: () => void;
 }
 
-const TouchablePriority = ({ label, color, isSelected, onPress }: TouchablePriorityProps) => (
+const TouchablePriority = ({ label, icon, color, isSelected, onPress }: TouchablePriorityProps) => (
   <Button
     mode={isSelected ? 'contained' : 'outlined'}
     onPress={onPress}
+    icon={icon}
     style={[
       styles.priorityButton,
       isSelected && { backgroundColor: color }
@@ -338,6 +512,34 @@ const TouchablePriority = ({ label, color, isSelected, onPress }: TouchablePrior
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: customColors.background,
+  },
+  headerGradient: {
+    paddingTop: 40,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    margin: 0,
+    padding: 8,
+    marginRight: 4,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginLeft: 8,
   },
   keyboardAvoid: {
     flex: 1,
@@ -350,36 +552,43 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-    paddingTop: 40,
-  },
-  backButton: {
-    margin: 0,
-    padding: 8,
-    marginRight: 4,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  loadingText: {
+    fontSize: 16,
     color: customColors.textPrimary,
-    marginLeft: 8,
+    marginTop: 12,
   },
-  form: {
-    padding: 16,
+  formContainer: {
+    marginHorizontal: 16,
+    marginTop: -16,
+    borderRadius: 12,
+    padding: 20,
+    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   inputGroup: {
     marginBottom: 20,
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  inputIcon: {
+    margin: 0,
+    padding: 0,
+    backgroundColor: 'transparent',
+    marginRight: -6,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
     color: customColors.textPrimary,
-    marginBottom: 8,
   },
   input: {
     backgroundColor: customColors.inputBackground,
@@ -424,6 +633,43 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     elevation: 4,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  clearButton: {
+    marginTop: -4,
+    marginRight: -8,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: customColors.inputBorder,
+    borderRadius: 4,
+    height: 56,
+    paddingHorizontal: 12,
+    backgroundColor: customColors.inputBackground,
+  },
+  dateText: {
+    fontSize: 16,
+    color: customColors.textPrimary,
+  },
+  dateTextPlaceholder: {
+    color: customColors.disabled,
+  },
+  calendarIcon: {
+    margin: 0,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: customColors.inputBorder,
+    marginVertical: 16,
+    marginHorizontal: 8,
   },
 });
 

@@ -1,21 +1,66 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Appbar, TextInput, Button } from 'react-native-paper';
-import { router } from 'expo-router';
+import { View, StyleSheet, ToastAndroid, Platform, Alert } from 'react-native';
+import { Appbar, TextInput, Button, HelperText } from 'react-native-paper';
+import * as expoRouter from 'expo-router';
+import { addTodo } from '../services/storage';
+
+// Create a router instance that we can type-cast when needed
+const router = expoRouter.router;
 
 const AddTodoScreen = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [titleError, setTitleError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleGoBack = () => {
-    router.back();
+  const validateForm = (): boolean => {
+    if (!title.trim()) {
+      setTitleError('Title is required');
+      return false;
+    }
+    setTitleError('');
+    return true;
   };
 
-  const handleSave = () => {
-    // Currently just logs the data, will be enhanced in future milestones
-    console.log('Saving todo:', { title, description });
-    // Return to the previous screen
-    router.back();
+  const handleGoBack = () => {
+    (router as any).back();
+  };
+
+  const showToast = (message: string) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Success', message);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await addTodo({
+        title: title.trim(),
+        description: description.trim(),
+        isCompleted: false,
+      });
+
+      showToast('Todo added successfully');
+      
+      // Clear fields
+      setTitle('');
+      setDescription('');
+      
+      // Return to the previous screen
+      handleGoBack();
+    } catch (error) {
+      console.error('Error saving todo:', error);
+      showToast('Error adding todo');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -29,10 +74,19 @@ const AddTodoScreen = () => {
         <TextInput
           label="Title"
           value={title}
-          onChangeText={setTitle}
+          onChangeText={(text) => {
+            setTitle(text);
+            if (text.trim()) setTitleError('');
+          }}
           mode="outlined"
           style={styles.input}
+          error={!!titleError}
         />
+        {!!titleError && (
+          <HelperText type="error" visible={!!titleError}>
+            {titleError}
+          </HelperText>
+        )}
 
         <TextInput
           label="Description"
@@ -56,6 +110,8 @@ const AddTodoScreen = () => {
             mode="contained" 
             onPress={handleSave} 
             style={styles.button}
+            disabled={isSubmitting || !title.trim()}
+            loading={isSubmitting}
           >
             Save
           </Button>
@@ -73,7 +129,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   buttonContainer: {
     flexDirection: 'row',

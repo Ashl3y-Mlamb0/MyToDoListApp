@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Appbar, FAB } from 'react-native-paper';
+import { Appbar, FAB, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import TodoList, { Todo } from '../components/TodoList';
 
@@ -31,10 +31,18 @@ const HomeScreen = () => {
     router.push('/add');
   };
 
+  const handleOpenNestedExample = () => {
+    router.push('/nested-stack');
+  };
+
   return (
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.Content title="My Todo List" />
+        <Appbar.Action 
+          icon="cog" 
+          onPress={handleOpenNestedExample} 
+        />
       </Appbar.Header>
       <View style={styles.content}>
         {dummyTodos.length > 0 ? (

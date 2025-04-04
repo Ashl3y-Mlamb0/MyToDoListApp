@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Appbar, FAB, Button } from 'react-native-paper';
-import { router } from 'expo-router';
+import * as expoRouter from 'expo-router';
 import TodoList, { Todo } from '../components/TodoList';
+
+// Create a router instance that we can type-cast when needed
+const router = expoRouter.router;
 
 const HomeScreen = () => {
   // Dummy data for the todos
@@ -28,11 +31,13 @@ const HomeScreen = () => {
   ];
 
   const handleAddTodo = () => {
-    router.push('/add');
+    // Use any type as a workaround for TypeScript issues
+    (router as any).push('/add');
   };
 
   const handleOpenNestedExample = () => {
-    router.push('/nested-stack');
+    // Use any type as a workaround for TypeScript issues
+    (router as any).push('/nested-stack');
   };
 
   return (

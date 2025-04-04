@@ -5,6 +5,7 @@ import * as expoRouter from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import TodoList from '../components/TodoList';
 import { getTodos, deleteTodo, toggleTodoStatus, Todo } from '../services/storage';
+import { useAuth } from '../contexts/AuthContext';
 
 // Create a router instance that we can type-cast when needed
 const router = expoRouter.router;
@@ -44,6 +45,7 @@ const HomeScreen = () => {
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const theme = useTheme();
+  const { user, logout } = useAuth();
 
   // Load todos on initial mount
   useEffect(() => {
@@ -112,6 +114,16 @@ const HomeScreen = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Router redirection is handled by RouteGuard
+    } catch (error) {
+      console.error('Error logging out:', error);
+      showSnackbar('Failed to log out');
+    }
+  };
+
   const showSnackbar = (message: string) => {
     setSnackbarMessage(message);
     setSnackbarVisible(true);
@@ -125,13 +137,18 @@ const HomeScreen = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: customColors.background }]}>
       <StatusBar barStyle="dark-content" backgroundColor={customColors.background} />
       
-      {/* Header with date */}
+      {/* Header with date and user info */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Today</Text>
           <Text style={styles.headerSubtitle}>
             {getMonthName()} {getDate()} • {getDayName()}
           </Text>
+          {user && (
+            <Text style={styles.userWelcome}>
+              Welcome, {user.username}!
+            </Text>
+          )}
         </View>
         <View style={styles.headerActions}>
           <Avatar.Icon 
@@ -147,6 +164,13 @@ const HomeScreen = () => {
             style={styles.headerIcon} 
             color={customColors.textPrimary}
             onTouchEnd={handleOpenSettings}
+          />
+          <Avatar.Icon 
+            size={40} 
+            icon="logout" 
+            style={styles.headerIcon} 
+            color={customColors.textPrimary}
+            onTouchEnd={handleLogout}
           />
         </View>
       </View>
@@ -240,6 +264,12 @@ const styles = StyleSheet.create({
     backgroundColor: customColors.surface,
     color: customColors.textPrimary,
     marginBottom: 16,
+  },
+  userWelcome: {
+    fontSize: 14,
+    color: customColors.accent,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });
 

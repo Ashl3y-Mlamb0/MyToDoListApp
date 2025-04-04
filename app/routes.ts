@@ -17,6 +17,7 @@ declare module "expo-router" {
       "/home": {};
       "/add": {};
       "/settings": {};
+      "/login": {};
     }
   }
 } 

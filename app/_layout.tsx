@@ -26,7 +26,26 @@ export default function Layout() {
             animation: 'slide_from_right',
             presentation: 'card',
           }}
-        />
+        >
+          <Stack.Screen
+            name="index"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="add"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="edit"
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack>
       </PaperProvider>
     </GestureHandlerRootView>
   );

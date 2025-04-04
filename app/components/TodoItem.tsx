@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { Card, Title, Paragraph, IconButton, useTheme, Surface, Text } from 'react-native-paper';
-import { Todo } from '../services/storage';
+import { Todo, toggleTodoStatus, deleteTodo } from '../services/storage';
+import { router } from 'expo-router';
 
 // Custom theme colors
 const customColors = {
@@ -24,17 +25,14 @@ interface TodoItemProps {
   onDelete: (id: string) => void;
 }
 
-// Function to determine priority color based on id to simulate different priorities
-const getPriorityColor = (id: string): string => {
-  const idNum = parseInt(id, 10) || 0;
-  const remainder = idNum % 3;
-  
-  switch(remainder) {
-    case 0:
+// Function to determine priority color based on priority value
+const getPriorityColor = (priority: string): string => {
+  switch(priority.toLowerCase()) {
+    case 'high':
       return customColors.priorityHigh;
-    case 1:
+    case 'medium':
       return customColors.priorityMedium;
-    case 2:
+    case 'low':
       return customColors.priorityLow;
     default:
       return customColors.priorityMedium;
@@ -49,19 +47,44 @@ const TodoItem = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
     setExpanded(!expanded);
   };
 
+  const handleToggleStatus = async () => {
+    try {
+      await toggleTodoStatus(todo.id);
+      onToggleComplete(todo.id);
+    } catch (error) {
+      console.error('Error toggling todo status:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteTodo(todo.id);
+      onDelete(todo.id);
+    } catch (error) {
+      console.error('Error deleting todo:', error);
+    }
+  };
+
+  const handleEdit = () => {
+    router.push({
+      pathname: '/edit',
+      params: { id: todo.id }
+    } as any);
+  };
+
   return (
     <Surface style={styles.surface}>
       <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
         <View style={styles.todoItem}>
           {/* Priority Circle */}
           <TouchableOpacity 
-            onPress={() => onToggleComplete(todo.id)}
+            onPress={handleToggleStatus}
             style={[
               styles.priorityCircle, 
               { 
                 backgroundColor: todo.isCompleted 
                   ? customColors.disabled 
-                  : getPriorityColor(todo.id)
+                  : getPriorityColor(todo.priority || 'medium')
               }
             ]}
           >
@@ -102,10 +125,17 @@ const TodoItem = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
             {expanded && (
               <View style={styles.actions}>
                 <IconButton
+                  icon="pencil"
+                  size={20}
+                  iconColor={customColors.textSecondary}
+                  onPress={handleEdit}
+                  style={styles.editButton}
+                />
+                <IconButton
                   icon="delete"
                   iconColor={customColors.error}
                   size={20}
-                  onPress={() => onDelete(todo.id)}
+                  onPress={handleDelete}
                   style={styles.deleteButton}
                 />
               </View>
@@ -169,6 +199,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 8,
+  },
+  editButton: {
+    margin: 0,
   },
   deleteButton: {
     margin: 0,

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, HelperText, IconButton, useTheme } from 'react-native-paper';
 import * as expoRouter from 'expo-router';
-import { addTodo } from '../services/storage';
+import { getTodoById, updateTodo } from '../services/storage';
 
 // Custom theme colors
 const customColors = {
@@ -24,13 +24,53 @@ const customColors = {
 // Create a router instance that we can type-cast when needed
 const router = expoRouter.router;
 
-const AddTodoScreen = () => {
+const EditTodoScreen = () => {
+  const [todoId, setTodoId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [titleError, setTitleError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priority, setPriority] = useState('medium'); // 'high', 'medium', 'low'
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const theme = useTheme();
+
+  // Extract todoId from URL params
+  useEffect(() => {
+    const params = (router as any).getState()?.routes?.find(
+      (r: any) => r.name === 'edit'
+    )?.params;
+    
+    if (params?.id) {
+      setTodoId(params.id);
+      loadTodo(params.id);
+    } else {
+      // No ID provided, go back
+      handleGoBack();
+    }
+  }, []);
+
+  const loadTodo = async (id: string) => {
+    setLoading(true);
+    try {
+      const todo = await getTodoById(id);
+      if (todo) {
+        setTitle(todo.title);
+        setDescription(todo.description || '');
+        setPriority(todo.priority || 'medium');
+        setIsCompleted(todo.isCompleted);
+      } else {
+        showToast('Todo not found');
+        handleGoBack();
+      }
+    } catch (error) {
+      console.error('Error loading todo:', error);
+      showToast('Error loading todo');
+      handleGoBack();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const validateForm = (): boolean => {
     if (!title.trim()) {
@@ -54,31 +94,28 @@ const AddTodoScreen = () => {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) {
+    if (!validateForm() || !todoId) {
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await addTodo({
+      await updateTodo({
+        id: todoId,
         title: title.trim(),
         description: description.trim(),
-        isCompleted: false,
-        priority: priority,
+        isCompleted,
+        createdAt: new Date().toISOString(), // This will be overwritten by the existing one
+        priority,
       });
 
-      showToast('Todo added successfully');
-      
-      // Clear fields
-      setTitle('');
-      setDescription('');
-      setPriority('medium');
+      showToast('Todo updated successfully');
       
       // Return to the previous screen
       handleGoBack();
     } catch (error) {
-      console.error('Error saving todo:', error);
-      showToast('Error adding todo');
+      console.error('Error updating todo:', error);
+      showToast('Error updating todo');
     } finally {
       setIsSubmitting(false);
     }
@@ -98,6 +135,17 @@ const AddTodoScreen = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: customColors.background }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={customColors.background} />
+        <View style={styles.loadingContainer}>
+          <Text>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: customColors.background }]}>
       <StatusBar barStyle="dark-content" backgroundColor={customColors.background} />
@@ -115,7 +163,7 @@ const AddTodoScreen = () => {
               onPress={handleGoBack}
               style={styles.backButton}
             />
-            <Text style={styles.headerTitle}>New Task</Text>
+            <Text style={styles.headerTitle}>Edit Task</Text>
           </View>
 
           <View style={styles.form}>
@@ -162,6 +210,41 @@ const AddTodoScreen = () => {
                 placeholder="Add details about your task..."
                 placeholderTextColor={customColors.disabled}
               />
+            </View>
+
+            {/* Completion Status */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Status</Text>
+              <View style={styles.statusContainer}>
+                <Button
+                  mode={isCompleted ? 'contained' : 'outlined'}
+                  onPress={() => setIsCompleted(true)}
+                  style={[
+                    styles.statusButton,
+                    isCompleted && { backgroundColor: customColors.primary }
+                  ]}
+                  labelStyle={{
+                    color: isCompleted ? '#FFFFFF' : customColors.primary,
+                    fontSize: 14,
+                  }}
+                >
+                  Completed
+                </Button>
+                <Button
+                  mode={!isCompleted ? 'contained' : 'outlined'}
+                  onPress={() => setIsCompleted(false)}
+                  style={[
+                    styles.statusButton,
+                    !isCompleted && { backgroundColor: customColors.primary }
+                  ]}
+                  labelStyle={{
+                    color: !isCompleted ? '#FFFFFF' : customColors.primary,
+                    fontSize: 14,
+                  }}
+                >
+                  Active
+                </Button>
+              </View>
             </View>
 
             {/* Priority Selection */}
@@ -259,6 +342,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,6 +382,15 @@ const styles = StyleSheet.create({
     minHeight: 120,
     textAlignVertical: 'top',
   },
+  statusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statusButton: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 8,
+  },
   priorityContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -323,4 +420,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddTodoScreen; 
+export default EditTodoScreen; 

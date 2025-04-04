@@ -7,6 +7,7 @@ export interface Todo {
   description?: string;
   isCompleted: boolean;
   createdAt: string; // ISO string
+  priority: string;  // 'high', 'medium', 'low'
 }
 
 // Storage keys
@@ -38,6 +39,7 @@ export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt'>): Promise<Tod
     ...todo,
     id: Date.now().toString(), // Generate a unique ID
     createdAt: new Date().toISOString(),
+    priority: todo.priority || 'medium', // Default to medium if not specified
   };
 
   try {
@@ -55,12 +57,44 @@ export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt'>): Promise<Tod
 export const updateTodo = async (updatedTodo: Todo): Promise<void> => {
   try {
     const todos = await getTodos();
-    const updatedTodos = todos.map(todo => 
-      todo.id === updatedTodo.id ? updatedTodo : todo
-    );
-    await saveTodos(updatedTodos);
+    const index = todos.findIndex(todo => todo.id === updatedTodo.id);
+    
+    if (index !== -1) {
+      // Preserve the original createdAt date
+      const originalTodo = todos[index];
+      updatedTodo.createdAt = originalTodo.createdAt;
+      
+      // Update the todo at the found index
+      todos[index] = updatedTodo;
+      
+      // Save back to storage
+      await saveTodos(todos);
+    } else {
+      throw new Error(`Todo with id ${updatedTodo.id} not found`);
+    }
   } catch (error) {
     console.error('Error updating todo:', error);
+    throw error;
+  }
+};
+
+// Toggle todo completion status
+export const toggleTodoStatus = async (todoId: string): Promise<void> => {
+  try {
+    const todos = await getTodos();
+    const todoIndex = todos.findIndex(todo => todo.id === todoId);
+    
+    if (todoIndex !== -1) {
+      // Toggle the isCompleted status
+      todos[todoIndex].isCompleted = !todos[todoIndex].isCompleted;
+      
+      // Save back to storage
+      await saveTodos(todos);
+    } else {
+      throw new Error(`Todo with id ${todoId} not found`);
+    }
+  } catch (error) {
+    console.error('Error toggling todo status:', error);
     throw error;
   }
 };
@@ -70,6 +104,8 @@ export const deleteTodo = async (todoId: string): Promise<void> => {
   try {
     const todos = await getTodos();
     const filteredTodos = todos.filter(todo => todo.id !== todoId);
+    
+    // Save back to storage
     await saveTodos(filteredTodos);
   } catch (error) {
     console.error('Error deleting todo:', error);
@@ -77,16 +113,13 @@ export const deleteTodo = async (todoId: string): Promise<void> => {
   }
 };
 
-// Toggle todo completion status
-export const toggleTodoCompletion = async (todoId: string): Promise<void> => {
+// Get a specific todo by ID
+export const getTodoById = async (todoId: string): Promise<Todo | null> => {
   try {
     const todos = await getTodos();
-    const updatedTodos = todos.map(todo => 
-      todo.id === todoId ? { ...todo, isCompleted: !todo.isCompleted } : todo
-    );
-    await saveTodos(updatedTodos);
+    return todos.find(todo => todo.id === todoId) || null;
   } catch (error) {
-    console.error('Error toggling todo completion:', error);
-    throw error;
+    console.error('Error getting todo by id:', error);
+    return null;
   }
 }; 

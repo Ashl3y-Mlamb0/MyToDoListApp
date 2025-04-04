@@ -23,6 +23,7 @@ const customColors = {
   textPrimary: '#2C384A', // Dark text
   textSecondary: '#7D8FA9', // Lighter text
   disabled: '#BEC4CD', // Disabled state
+  aiAssistant: '#7C4DFF', // Purple for AI assistant
 };
 
 const getDayName = () => {
@@ -82,6 +83,11 @@ const HomeScreen = () => {
     (router as any).push('/settings');
   };
 
+  const handleOpenAIAssistant = () => {
+    // Use any type as a workaround for TypeScript issues
+    (router as any).push('/ai-assistant');
+  };
+
   const handleToggleComplete = async (id: string) => {
     try {
       await toggleTodoStatus(id);
@@ -111,16 +117,6 @@ const HomeScreen = () => {
     } catch (error) {
       console.error('Error deleting todo:', error);
       showSnackbar('Failed to delete todo');
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      // Router redirection is handled by RouteGuard
-    } catch (error) {
-      console.error('Error logging out:', error);
-      showSnackbar('Failed to log out');
     }
   };
 
@@ -160,17 +156,17 @@ const HomeScreen = () => {
           />
           <Avatar.Icon 
             size={40} 
+            icon="robot" 
+            style={[styles.headerIcon, styles.aiIcon]} 
+            color="#FFFFFF"
+            onTouchEnd={handleOpenAIAssistant}
+          />
+          <Avatar.Icon 
+            size={40} 
             icon="cog" 
             style={styles.headerIcon} 
             color={customColors.textPrimary}
             onTouchEnd={handleOpenSettings}
-          />
-          <Avatar.Icon 
-            size={40} 
-            icon="logout" 
-            style={styles.headerIcon} 
-            color={customColors.textPrimary}
-            onTouchEnd={handleLogout}
           />
         </View>
       </View>
@@ -270,6 +266,9 @@ const styles = StyleSheet.create({
     color: customColors.accent,
     marginTop: 4,
     fontWeight: '500',
+  },
+  aiIcon: {
+    backgroundColor: customColors.aiAssistant,
   },
 });
 

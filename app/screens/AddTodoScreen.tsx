@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
-import { Text, TextInput, Button, HelperText, IconButton, useTheme, Surface, Divider } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator } from 'react-native';
+import { Text, TextInput, Button, HelperText, IconButton, useTheme, Surface, Divider, Chip } from 'react-native-paper';
 import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addTodo } from '../services/storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAI } from '../contexts/AIContext';
 
 // Custom theme colors
 const customColors = {
@@ -34,7 +35,13 @@ const AddTodoScreen = () => {
   const [priority, setPriority] = useState('medium'); // 'high', 'medium', 'low'
   const [deadline, setDeadline] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [category, setCategory] = useState('General'); // Add category state
   const theme = useTheme();
+  
+  // AI-related states
+  const [isAILoading, setIsAILoading] = useState(false);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const { isEnabled, getPriorityForTask, getDueDateForTask, getCategoryForTask } = useAI();
 
   const validateForm = (): boolean => {
     if (!title.trim()) {
@@ -70,6 +77,7 @@ const AddTodoScreen = () => {
         isCompleted: false,
         priority,
         deadline: deadline ? deadline.toISOString() : undefined,
+        category,
       });
 
       showToast('Todo added successfully');
@@ -119,6 +127,52 @@ const AddTodoScreen = () => {
     }
   };
 
+  // Request AI suggestions when the title changes
+  useEffect(() => {
+    const getSuggestions = async () => {
+      if (!isEnabled || !title.trim() || title.length < 3) {
+        return;
+      }
+
+      setIsAILoading(true);
+      try {
+        // Get priority suggestion
+        const prioritySuggestion = await getPriorityForTask(title, description);
+        if (prioritySuggestion) {
+          setPriority(prioritySuggestion);
+        }
+
+        // Get due date suggestion
+        const dueDateSuggestion = await getDueDateForTask(title, description);
+        if (dueDateSuggestion) {
+          const suggestedDate = new Date(dueDateSuggestion);
+          if (!isNaN(suggestedDate.getTime())) {
+            setDeadline(suggestedDate);
+          }
+        }
+        
+        // Get category suggestion
+        const categorySuggestion = await getCategoryForTask(title, description);
+        if (categorySuggestion) {
+          setCategory(categorySuggestion);
+        }
+      } catch (error) {
+        console.error('Error getting AI suggestions:', error);
+      } finally {
+        setIsAILoading(false);
+      }
+    };
+
+    // Debounce the AI suggestions to avoid too many API calls
+    const debounceTimeout = setTimeout(() => {
+      if (title.trim().length >= 3) {
+        getSuggestions();
+      }
+    }, 800);
+
+    return () => clearTimeout(debounceTimeout);
+  }, [title, description, isEnabled]);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={customColors.primary} />
@@ -151,6 +205,30 @@ const AddTodoScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <Surface style={styles.formContainer}>
+            {/* AI Suggestion Indicator */}
+            {isEnabled && (
+              <View style={styles.aiContainer}>
+                <TouchableOpacity
+                  style={styles.aiToggle}
+                  onPress={() => router.push('/ai-assistant')}
+                >
+                  <Text style={styles.aiLabel}>AI Assistant</Text>
+                  <IconButton
+                    icon="robot"
+                    size={20}
+                    iconColor={customColors.primary}
+                    style={{ margin: 0 }}
+                  />
+                </TouchableOpacity>
+                {isAILoading && (
+                  <View style={styles.aiLoadingContainer}>
+                    <ActivityIndicator size="small" color={customColors.primary} />
+                    <Text style={styles.aiLoadingText}>AI is analyzing your task...</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Title Input */}
             <View style={styles.inputGroup}>
               <View style={styles.labelContainer}>
@@ -259,42 +337,112 @@ const AddTodoScreen = () => {
                   minimumDate={new Date()}
                 />
               ))}
+              {isEnabled && deadline && (
+                <Chip
+                  icon="brain"
+                  style={styles.aiSuggestionChip}
+                  textStyle={styles.aiSuggestionText}
+                  onPress={() => {}}
+                >
+                  AI suggested deadline
+                </Chip>
+              )}
             </View>
 
             {/* Priority Selection */}
             <View style={styles.inputGroup}>
               <View style={styles.labelContainer}>
                 <IconButton
-                  icon="flag-outline"
+                  icon="flag-variant"
                   size={20}
                   iconColor={customColors.primary}
                   style={styles.inputIcon}
                 />
-                <Text style={styles.label}>Priority Level</Text>
+                <Text style={styles.label}>Priority</Text>
               </View>
               <View style={styles.priorityContainer}>
-                <TouchablePriority 
-                  label="High" 
+                <TouchablePriority
+                  label="High"
                   icon="flag"
                   color={customColors.priorityHigh}
                   isSelected={priority === 'high'}
                   onPress={() => setPriority('high')}
                 />
-                <TouchablePriority 
-                  label="Medium" 
+                <TouchablePriority
+                  label="Medium"
                   icon="flag"
                   color={customColors.priorityMedium}
                   isSelected={priority === 'medium'}
                   onPress={() => setPriority('medium')}
                 />
-                <TouchablePriority 
-                  label="Low" 
+                <TouchablePriority
+                  label="Low"
                   icon="flag"
                   color={customColors.priorityLow}
                   isSelected={priority === 'low'}
                   onPress={() => setPriority('low')}
                 />
               </View>
+              {isEnabled && (
+                <Chip
+                  icon="brain"
+                  style={styles.aiSuggestionChip}
+                  textStyle={styles.aiSuggestionText}
+                  onPress={() => {}}
+                >
+                  AI suggested priority
+                </Chip>
+              )}
+            </View>
+
+            <Divider style={styles.divider} />
+
+            {/* Category Selection */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelContainer}>
+                <IconButton
+                  icon="tag-outline"
+                  size={20}
+                  iconColor={customColors.primary}
+                  style={styles.inputIcon}
+                />
+                <Text style={styles.label}>Category</Text>
+              </View>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryScrollContent}
+              >
+                {['Work', 'Personal', 'Shopping', 'Home', 'Health', 
+                  'Finance', 'Learning', 'Social', 'Travel', 'Creative',
+                  'Meetings', 'Communication', 'Documentation', 'General'].map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.categoryChip,
+                      category === cat && { backgroundColor: customColors.primary }
+                    ]}
+                    onPress={() => setCategory(cat)}
+                  >
+                    <Text style={[
+                      styles.categoryText,
+                      category === cat && { color: '#FFFFFF' }
+                    ]}>
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              {isEnabled && (
+                <Chip
+                  icon="brain"
+                  style={styles.aiSuggestionChip}
+                  textStyle={styles.aiSuggestionText}
+                  onPress={() => {}}
+                >
+                  AI suggested category
+                </Chip>
+              )}
             </View>
 
             <Divider style={styles.divider} />
@@ -493,6 +641,64 @@ const styles = StyleSheet.create({
     backgroundColor: customColors.inputBorder,
     marginVertical: 16,
     marginHorizontal: 8,
+  },
+  aiContainer: {
+    marginBottom: 16,
+    padding: 10,
+    backgroundColor: 'rgba(74, 143, 231, 0.05)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: customColors.primary,
+  },
+  aiToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  aiLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: customColors.primary,
+  },
+  aiLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  aiLoadingText: {
+    fontSize: 12,
+    color: customColors.textSecondary,
+    marginLeft: 8,
+  },
+  aiSuggestionChip: {
+    backgroundColor: 'rgba(74, 143, 231, 0.1)',
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  aiSuggestionText: {
+    fontSize: 12,
+    color: customColors.primary,
+  },
+  categoryContainer: {
+    marginVertical: 8,
+  },
+  categoryScrollContent: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(74, 143, 231, 0.1)',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 143, 231, 0.2)',
+  },
+  categoryText: {
+    fontSize: 14,
+    color: customColors.primary,
+    fontWeight: '500',
   },
 });
 

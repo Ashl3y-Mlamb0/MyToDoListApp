@@ -16,8 +16,10 @@ declare module "expo-router" {
       "/": {};
       "/home": {};
       "/add": {};
+      "/edit": {};
       "/settings": {};
       "/login": {};
+      "/ai-assistant": {};
     }
   }
 } 

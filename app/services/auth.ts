@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
-// User interface
+// User interface - aligned with Supabase user structure
 export interface User {
   id: string;
   username: string;
@@ -21,7 +22,7 @@ const AUTH_TOKEN_KEY = 'auth_token';
 const USER_DATA_KEY = 'user_data';
 
 /**
- * Register a new user
+ * Register a new user using Supabase Auth
  */
 export const registerUser = async (
   username: string, 
@@ -29,64 +30,87 @@ export const registerUser = async (
   password: string
 ): Promise<User> => {
   try {
-    // In a real app, this would call an API endpoint
-    // For this demo, we'll simulate a successful registration
-    
-    // Generate a random ID
-    const userId = `user_${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Create a new user object
-    const newUser: User = {
-      id: userId,
-      username,
+    // Register with Supabase
+    const { data, error } = await supabase.auth.signUp({
       email,
-      createdAt: Date.now(),
+      password,
+      options: {
+        data: {
+          username,
+        }
+      }
+    });
+
+    if (error) {
+      console.error('Error during registration:', error);
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error('Registration failed: No user returned');
+    }
+
+    // Create a user object from Supabase response
+    const newUser: User = {
+      id: data.user.id,
+      username,
+      email: data.user.email || email,
+      createdAt: new Date(data.user.created_at || Date.now()).getTime(),
     };
     
-    // Store the user data
+    // Store the user data locally
     await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(newUser));
     
-    // Generate a fake token (in a real app, this would come from the server)
-    const token = `token_${Math.random().toString(36).substring(2, 15)}`;
-    await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+    // Store the session token
+    if (data.session?.access_token) {
+      await AsyncStorage.setItem(AUTH_TOKEN_KEY, data.session.access_token);
+    }
     
     return newUser;
   } catch (error) {
     console.error('Error during registration:', error);
-    throw new Error('Registration failed');
+    throw error;
   }
 };
 
 /**
- * Login a user with username/email and password
+ * Login a user with email and password using Supabase Auth
  */
 export const loginUser = async (
-  usernameOrEmail: string, 
+  email: string, 
   password: string
 ): Promise<User> => {
   try {
-    // In a real app, this would validate credentials against an API
-    // For this demo, we'll just check if a user exists and simulate login
-    
-    const userData = await AsyncStorage.getItem(USER_DATA_KEY);
-    
-    if (!userData) {
-      throw new Error('User not found. Please register first.');
+    // Login with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      console.error('Error during login:', error);
+      throw new Error(error.message);
     }
-    
-    const user: User = JSON.parse(userData);
-    
-    // Check if the provided username/email matches (simplified for demo)
-    if (user.username !== usernameOrEmail && user.email !== usernameOrEmail) {
-      throw new Error('Invalid credentials');
+
+    if (!data.user) {
+      throw new Error('Login failed: No user returned');
     }
+
+    // Create a user object from Supabase response
+    const user: User = {
+      id: data.user.id,
+      username: data.user.user_metadata.username || email.split('@')[0],
+      email: data.user.email || email,
+      createdAt: new Date(data.user.created_at || Date.now()).getTime(),
+    };
     
-    // In a real app, we would verify the password here
-    // For this demo, we'll accept any password
+    // Store the user data locally
+    await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(user));
     
-    // Generate a fake token (in a real app, this would come from the server)
-    const token = `token_${Math.random().toString(36).substring(2, 15)}`;
-    await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+    // Store the session token
+    if (data.session?.access_token) {
+      await AsyncStorage.setItem(AUTH_TOKEN_KEY, data.session.access_token);
+    }
     
     return user;
   } catch (error) {
@@ -100,7 +124,16 @@ export const loginUser = async (
  */
 export const logoutUser = async (): Promise<void> => {
   try {
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      console.error('Error during Supabase logout:', error);
+    }
+    
+    // Clear local storage
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+    await AsyncStorage.removeItem(USER_DATA_KEY);
   } catch (error) {
     console.error('Error during logout:', error);
     throw new Error('Logout failed');
@@ -112,8 +145,15 @@ export const logoutUser = async (): Promise<void> => {
  */
 export const isAuthenticated = async (): Promise<boolean> => {
   try {
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    return !!token;
+    // Check Supabase session
+    const { data, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Error checking Supabase session:', error);
+      return false;
+    }
+    
+    return !!data.session;
   } catch (error) {
     console.error('Error checking authentication:', error);
     return false;
@@ -125,13 +165,29 @@ export const isAuthenticated = async (): Promise<boolean> => {
  */
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+    // Get current Supabase user
+    const { data, error } = await supabase.auth.getUser();
     
-    if (!userData) {
+    if (error || !data.user) {
+      console.error('Error getting Supabase user:', error);
       return null;
     }
     
-    return JSON.parse(userData);
+    // Get local user data
+    const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+    
+    if (userData) {
+      // Use locally stored data if available
+      return JSON.parse(userData);
+    }
+    
+    // Create user from Supabase data
+    return {
+      id: data.user.id,
+      username: data.user.user_metadata.username || data.user.email?.split('@')[0] || 'User',
+      email: data.user.email || '',
+      createdAt: new Date(data.user.created_at || Date.now()).getTime(),
+    };
   } catch (error) {
     console.error('Error getting current user:', error);
     return null;
@@ -145,6 +201,7 @@ export const updateUserProfile = async (
   updates: Partial<Omit<User, 'id' | 'createdAt'>>
 ): Promise<User> => {
   try {
+    // Get current user data
     const userData = await AsyncStorage.getItem(USER_DATA_KEY);
     
     if (!userData) {
@@ -152,8 +209,22 @@ export const updateUserProfile = async (
     }
     
     const currentUser: User = JSON.parse(userData);
-    const updatedUser = { ...currentUser, ...updates };
     
+    // Update Supabase user metadata
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        username: updates.username || currentUser.username,
+        avatar: updates.avatar || currentUser.avatar,
+      }
+    });
+    
+    if (error) {
+      console.error('Error updating Supabase user:', error);
+      throw new Error(error.message);
+    }
+    
+    // Update local user data
+    const updatedUser = { ...currentUser, ...updates };
     await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(updatedUser));
     
     return updatedUser;
@@ -161,4 +232,7 @@ export const updateUserProfile = async (
     console.error('Error updating user profile:', error);
     throw new Error('Profile update failed');
   }
-}; 
+};
+
+// Add a default export to satisfy expo-router's expectations
+export default {}; 

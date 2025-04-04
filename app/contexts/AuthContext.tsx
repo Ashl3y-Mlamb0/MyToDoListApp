@@ -158,4 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </AuthContext.Provider>
   );
-}; 
+};
+
+// Add a default export to satisfy expo-router's expectations
+export default {}; 

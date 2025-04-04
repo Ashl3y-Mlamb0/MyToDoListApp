@@ -4,11 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface Todo {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   isCompleted: boolean;
-  createdAt: string; // ISO string
+  createdAt: number;
   priority: string;  // 'high', 'medium', 'low'
   deadline?: string; // Optional deadline date in ISO format
+  category?: string;
 }
 
 // Storage keys
@@ -41,7 +42,7 @@ export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt'>): Promise<Tod
     
     const newTodo: Todo = {
       id: Date.now().toString(), // simple ID generation
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().getTime(),
       ...todo
     };
     

@@ -21,6 +21,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { router } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { supabase } from '../services/supabase';
 
 // Custom theme colors
 const customColors = {
@@ -58,8 +60,21 @@ const LoginScreen = () => {
           return;
         }
         
-        await login(email, password);
-        router.replace('/home');
+        // Use Supabase auth for login
+        const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (supabaseError) {
+          throw new Error(supabaseError.message);
+        }
+        
+        if (data?.user) {
+          // Set user in auth context
+          await login(email, password);
+          router.replace('/home');
+        }
       } else {
         // Registration flow
         if (!username || !email || !password) {
@@ -80,8 +95,26 @@ const LoginScreen = () => {
           return;
         }
         
-        await register(username, email, password);
-        router.replace('/home');
+        // Use Supabase auth for registration
+        const { data, error: supabaseError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username
+            }
+          }
+        });
+        
+        if (supabaseError) {
+          throw new Error(supabaseError.message);
+        }
+        
+        if (data?.user) {
+          // Set user in auth context
+          await register(username, email, password);
+          router.replace('/home');
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -115,13 +148,13 @@ const LoginScreen = () => {
             style={styles.header}
           >
             <View style={styles.logoContainer}>
-              <Image 
-                source={require('../../assets/task-icon.png')} 
-                style={styles.logo} 
-                resizeMode="contain"
+              <MaterialCommunityIcons 
+                name="check-circle-outline" 
+                size={50} 
+                color="#FFFFFF" 
               />
             </View>
-            <Text style={styles.title}>TaskMaster</Text>
+            <Text style={styles.title}>MyToDoList</Text>
             <Text style={styles.subtitle}>
               {isLoggingIn ? 'Welcome back!' : 'Create your account'}
             </Text>

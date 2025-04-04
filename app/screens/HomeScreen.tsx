@@ -4,7 +4,7 @@ import { Appbar, FAB, Snackbar, Surface, useTheme, Avatar } from 'react-native-p
 import * as expoRouter from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import TodoList from '../components/TodoList';
-import { getTodos, deleteTodo, toggleTodoCompletion, Todo } from '../services/storage';
+import { getTodos, deleteTodo, toggleTodoStatus, Todo } from '../services/storage';
 
 // Create a router instance that we can type-cast when needed
 const router = expoRouter.router;
@@ -82,7 +82,7 @@ const HomeScreen = () => {
 
   const handleToggleComplete = async (id: string) => {
     try {
-      await toggleTodoCompletion(id);
+      await toggleTodoStatus(id);
       
       // Update the local state
       setTodos(prevTodos => 
@@ -195,19 +195,19 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
+    paddingTop: 40, 
+    paddingBottom: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: customColors.textPrimary,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: customColors.textSecondary,
     marginTop: 4,
   },
@@ -216,11 +216,12 @@ const styles = StyleSheet.create({
   },
   headerIcon: {
     backgroundColor: 'transparent',
-    marginLeft: 8,
+    marginLeft: 12,
   },
   content: {
     flex: 1,
     paddingHorizontal: 16,
+    paddingTop: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -229,10 +230,11 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    margin: 16,
+    margin: 20,
     right: 0,
     bottom: 0,
     borderRadius: 30,
+    elevation: 4,
   },
   snackbar: {
     backgroundColor: customColors.surface,

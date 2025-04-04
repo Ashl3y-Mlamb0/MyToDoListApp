@@ -62,12 +62,14 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 80, // Space for FAB button
+    paddingTop: 4,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    marginTop: -60, // Center it better
   },
   emptyIcon: {
     backgroundColor: 'rgba(93, 156, 236, 0.1)',

@@ -105,7 +105,10 @@ const AddTodoScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         style={styles.keyboardAvoid}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <View style={styles.header}>
             <IconButton
@@ -258,15 +261,19 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 24,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 24,
+    paddingTop: 40,
   },
   backButton: {
     margin: 0,
+    padding: 8,
+    marginRight: 4,
   },
   headerTitle: {
     fontSize: 24,
@@ -275,10 +282,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   form: {
-    padding: 24,
+    padding: 16,
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   label: {
     fontSize: 16,
@@ -291,7 +298,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   textArea: {
-    minHeight: 120,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
   priorityContainer: {
@@ -306,7 +313,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 32,
+    marginTop: 28,
   },
   button: {
     width: '48%',
@@ -319,7 +326,7 @@ const styles = StyleSheet.create({
     borderColor: customColors.inputBorder,
   },
   saveButton: {
-    elevation: 2,
+    elevation: 4,
   },
 });
 

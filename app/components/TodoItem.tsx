@@ -39,7 +39,7 @@ const getPriorityColor = (priority: string): string => {
   }
 };
 
-const TodoItem = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
+const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
   const [expanded, setExpanded] = useState(false);
   const theme = useTheme();
 
@@ -106,6 +106,7 @@ const TodoItem = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
                 todo.isCompleted && styles.completedTitle
               ]}
               numberOfLines={expanded ? undefined : 1}
+              ellipsizeMode="tail"
             >
               {todo.title}
             </Text>
@@ -117,6 +118,7 @@ const TodoItem = ({ todo, onToggleComplete, onDelete }: TodoItemProps) => {
                   todo.isCompleted && styles.completedDescription
                 ]}
                 numberOfLines={expanded ? undefined : 1}
+                ellipsizeMode="tail"
               >
                 {todo.description}
               </Text>
@@ -175,12 +177,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingRight: 8,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
     color: customColors.textPrimary,
     marginBottom: 4,
+    flexShrink: 1,
   },
   completedTitle: {
     textDecorationLine: 'line-through',
@@ -190,6 +194,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: customColors.textSecondary,
     lineHeight: 20,
+    flexShrink: 1,
   },
   completedDescription: {
     textDecorationLine: 'line-through',

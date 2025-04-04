@@ -1,6 +1,22 @@
-// This file is causing errors in Expo Router
-// The warning says it needs a default export
-// Since we're not using it for actual routing, let's remove its content
-export default function Routes() {
+import React from 'react';
+
+// This file is used to declare route types
+const Routes = () => {
+  // This component is never rendered but required for type safety
   return null;
+};
+
+export default Routes;
+
+// Define app routes for type checking
+declare module "expo-router" {
+  namespace Route {
+    interface Routes {
+      // Define root routes
+      "/": {};
+      "/home": {};
+      "/add": {};
+      "/nested-stack": {};
+    }
+  }
 } 

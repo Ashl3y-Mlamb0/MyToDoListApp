@@ -17,6 +17,7 @@ const customColors = {
   textPrimary: '#2C384A', // Dark text
   textSecondary: '#7D8FA9', // Lighter text
   disabled: '#BEC4CD', // Disabled state
+  success: '#4CAF50', // Green for success/complete
 };
 
 interface TodoItemProps {
@@ -105,9 +106,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }:
     <Surface style={styles.surface}>
       <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
         <View style={styles.todoItem}>
-          {/* Priority Circle */}
-          <TouchableOpacity 
-            onPress={handleToggleStatus}
+          {/* Priority Circle - no longer toggles completion */}
+          <View 
             style={[
               styles.priorityCircle, 
               { 
@@ -125,7 +125,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }:
                 style={styles.checkIcon}
               />
             )}
-          </TouchableOpacity>
+          </View>
           
           {/* Content */}
           <View style={styles.content}>
@@ -140,14 +140,13 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }:
               {todo.title}
             </Text>
             
-            {todo.description && (
+            {/* Description only shown when expanded */}
+            {todo.description && expanded && (
               <Text 
                 style={[
                   styles.description,
                   todo.isCompleted && styles.completedDescription
                 ]}
-                numberOfLines={expanded ? undefined : 1}
-                ellipsizeMode="tail"
               >
                 {todo.description}
               </Text>
@@ -176,6 +175,15 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }:
             
             {expanded && (
               <View style={styles.actions}>
+                {!todo.isCompleted && (
+                  <IconButton
+                    icon="check-circle"
+                    size={20}
+                    iconColor={customColors.success}
+                    onPress={handleToggleStatus}
+                    style={styles.completeButton}
+                  />
+                )}
                 <IconButton
                   icon="pencil"
                   size={20}
@@ -278,6 +286,9 @@ const styles = StyleSheet.create({
   overdueText: {
     color: customColors.priorityHigh,
     fontWeight: '500',
+  },
+  completeButton: {
+    margin: 0,
   },
 });
 

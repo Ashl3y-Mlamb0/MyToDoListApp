@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, SafeAreaView, StatusBar } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, SafeAreaView, StatusBar, AppState } from 'react-native';
 import { Appbar, FAB, Snackbar, Surface, useTheme, Avatar } from 'react-native-paper';
 import * as expoRouter from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import TodoList from '../components/TodoList';
 import { getTodos, deleteTodo, toggleTodoStatus, Todo } from '../services/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Create a router instance that we can type-cast when needed
 const router = expoRouter.router;
+
+// Storage keys 
+const TODOS_STORAGE_KEY = '@MyTodoList:todos';
 
 // Custom theme
 const customColors = {
@@ -45,23 +49,87 @@ const HomeScreen = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const theme = useTheme();
 
-  // Load todos on initial mount
+  // Load todos on initial mount and app resume
   useEffect(() => {
     loadTodos();
+
+    // Add app state listeners to reload todos when app comes back to foreground
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        console.log('App has come to the foreground, reloading todos');
+        loadTodos();
+      }
+    });
+
+    // Cleanup
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   // Refresh todos whenever the screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      console.log('Home screen focused, reloading todos');
       loadTodos();
     }, [])
   );
+
+  // Verify and fix completed status in localStorage if it doesn't match local state
+  const verifyCompletedStatus = async (loadedTodos: Todo[]) => {
+    console.log('[VERIFY DEBUG] Checking completed task status consistency');
+    
+    try {
+      // Get raw data from AsyncStorage directly
+      const rawStorageData = await AsyncStorage.getItem(TODOS_STORAGE_KEY);
+      if (!rawStorageData) {
+        console.log('[VERIFY DEBUG] No todos in AsyncStorage, nothing to verify');
+        return loadedTodos;
+      }
+      
+      // Parse stored todos
+      const storedTodos = JSON.parse(rawStorageData);
+      if (!Array.isArray(storedTodos)) {
+        console.error('[VERIFY DEBUG] Invalid storage data format, cannot verify');
+        return loadedTodos;
+      }
+      
+      // Check for completion status inconsistencies
+      let inconsistenciesFound = false;
+      const fixedTodos = loadedTodos.map(todo => {
+        const storedVersion = storedTodos.find((t: any) => t.id === todo.id);
+        if (storedVersion && storedVersion.isCompleted !== todo.isCompleted) {
+          console.warn(`[VERIFY DEBUG] Inconsistency found for todo "${todo.title}": local=${todo.isCompleted}, stored=${storedVersion.isCompleted}`);
+          inconsistenciesFound = true;
+          // Use the stored version's completion status
+          return { ...todo, isCompleted: storedVersion.isCompleted };
+        }
+        return todo;
+      });
+      
+      if (inconsistenciesFound) {
+        console.log('[VERIFY DEBUG] Fixed inconsistencies, saving corrected state');
+        setTodos(fixedTodos);
+        return fixedTodos;
+      } else {
+        console.log('[VERIFY DEBUG] No inconsistencies found');
+        return loadedTodos;
+      }
+    } catch (error) {
+      console.error('[VERIFY DEBUG] Error verifying todo status:', error);
+      return loadedTodos;
+    }
+  };
 
   const loadTodos = async () => {
     setLoading(true);
     try {
       const loadedTodos = await getTodos();
-      setTodos(loadedTodos);
+      
+      // Verify and fix any completion status inconsistencies
+      const verifiedTodos = await verifyCompletedStatus(loadedTodos);
+      
+      setTodos(verifiedTodos);
     } catch (error) {
       console.error('Error loading todos:', error);
       showSnackbar('Failed to load todos');
@@ -82,19 +150,61 @@ const HomeScreen = () => {
 
   const handleToggleComplete = async (id: string) => {
     try {
-      await toggleTodoStatus(id);
+      // Find the todo to update
+      const todoToUpdate = todos.find(todo => todo.id === id);
       
-      // Update the local state
-      setTodos(prevTodos => 
-        prevTodos.map(todo => 
-          todo.id === id ? { ...todo, isCompleted: !todo.isCompleted } : todo
-        )
+      if (!todoToUpdate) {
+        console.error(`[TOGGLE DEBUG] Todo with id ${id} not found in local state`);
+        return;
+      }
+      
+      // Log current status
+      console.log(`[TOGGLE DEBUG] Toggling todo "${todoToUpdate.title}" from ${todoToUpdate.isCompleted} to ${!todoToUpdate.isCompleted}`);
+      
+      // Create a deep copy of the todos array to avoid unexpected mutations
+      const updatedTodos = todos.map(todo => 
+        todo.id === id ? { ...todo, isCompleted: !todo.isCompleted } : todo
       );
       
-      showSnackbar('Todo status updated');
+      // Update the local state immediately for better UX
+      setTodos(updatedTodos);
+      
+      try {
+        // Attempt to update AsyncStorage directly with the complete updated list
+        const todosJson = JSON.stringify(updatedTodos);
+        await AsyncStorage.setItem(TODOS_STORAGE_KEY, todosJson);
+        console.log('[TOGGLE DEBUG] Successfully saved updated todos to AsyncStorage');
+        
+        // Double-check our save worked by reading it back
+        const savedJson = await AsyncStorage.getItem(TODOS_STORAGE_KEY);
+        const savedTodos = savedJson ? JSON.parse(savedJson) : [];
+        
+        const savedCompletedCount = savedTodos.filter((t: Todo) => t.isCompleted).length;
+        const expectedCompletedCount = updatedTodos.filter(t => t.isCompleted).length;
+        
+        console.log(`[TOGGLE DEBUG] Verification: expected ${expectedCompletedCount} completed, found ${savedCompletedCount} completed`);
+        
+        if (savedCompletedCount !== expectedCompletedCount) {
+          console.warn('[TOGGLE DEBUG] Saved completed count does not match expected!');
+          
+          // Try once more with toggleTodoStatus
+          await toggleTodoStatus(id);
+        }
+      } catch (storageError) {
+        console.error('[TOGGLE DEBUG] Error saving to AsyncStorage:', storageError);
+        
+        // Fall back to the original method
+        try {
+          await toggleTodoStatus(id);
+        } catch (fallbackError) {
+          console.error('[TOGGLE DEBUG] Fallback also failed:', fallbackError);
+          
+          // Revert local state since both save attempts failed
+          setTodos(todos);
+        }
+      }
     } catch (error) {
-      console.error('Error toggling todo completion:', error);
-      showSnackbar('Failed to update todo');
+      console.error('[TOGGLE DEBUG] Error in handleToggleComplete:', error);
     }
   };
 
@@ -104,8 +214,6 @@ const HomeScreen = () => {
       
       // Update the local state
       setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
-      
-      showSnackbar('Todo deleted');
     } catch (error) {
       console.error('Error deleting todo:', error);
       showSnackbar('Failed to delete todo');

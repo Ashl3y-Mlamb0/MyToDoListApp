@@ -17,10 +17,46 @@ const TODOS_STORAGE_KEY = '@MyTodoList:todos';
 // Get all todos
 export const getTodos = async (): Promise<Todo[]> => {
   try {
+    console.log('[STORAGE DEBUG] Attempting to retrieve todos from storage');
     const todosJson = await AsyncStorage.getItem(TODOS_STORAGE_KEY);
-    return todosJson ? JSON.parse(todosJson) : [];
+    if (!todosJson) {
+      console.log('[STORAGE DEBUG] No todos found in storage, returning empty array');
+      return [];
+    }
+    
+    console.log('[STORAGE DEBUG] Raw JSON data retrieved:', todosJson.substring(0, 100) + '...');
+    
+    try {
+      // Safely parse the JSON
+      const parsedTodos = JSON.parse(todosJson);
+      
+      // Validate it's an array
+      if (!Array.isArray(parsedTodos)) {
+        console.error('[STORAGE DEBUG] Retrieved todos is not an array, resetting to empty array');
+        return [];
+      }
+      
+      // Make sure all todos have the required fields
+      const validTodos = parsedTodos.filter((todo: any) => 
+        todo && 
+        typeof todo === 'object' && 
+        typeof todo.id === 'string' && 
+        typeof todo.isCompleted === 'boolean'
+      );
+      
+      console.log(`[STORAGE DEBUG] Retrieved ${validTodos.length} valid todos, completed count: ${validTodos.filter((t: Todo) => t.isCompleted).length}`);
+      
+      if (validTodos.length !== parsedTodos.length) {
+        console.warn(`[STORAGE DEBUG] Filtered out ${parsedTodos.length - validTodos.length} invalid todo items`);
+      }
+      
+      return validTodos;
+    } catch (parseError) {
+      console.error('[STORAGE DEBUG] Error parsing todos JSON:', parseError);
+      return [];
+    }
   } catch (error) {
-    console.error('Error getting todos from storage:', error);
+    console.error('[STORAGE DEBUG] Error getting todos from storage:', error);
     return [];
   }
 };
@@ -28,9 +64,35 @@ export const getTodos = async (): Promise<Todo[]> => {
 // Save all todos
 export const saveTodos = async (todos: Todo[]): Promise<void> => {
   try {
-    await AsyncStorage.setItem(TODOS_STORAGE_KEY, JSON.stringify(todos));
+    const todosJson = JSON.stringify(todos);
+    console.log(`[STORAGE DEBUG] Saving ${todos.length} todos, completed count: ${todos.filter((t: Todo) => t.isCompleted).length}`);
+    
+    // Force flush any pending AsyncStorage operations
+    await AsyncStorage.flushGetRequests();
+    
+    // Clear and set the new value
+    await AsyncStorage.removeItem(TODOS_STORAGE_KEY);
+    await AsyncStorage.setItem(TODOS_STORAGE_KEY, todosJson);
+    
+    // Verify data was saved correctly by reading it back
+    const savedJson = await AsyncStorage.getItem(TODOS_STORAGE_KEY);
+    if (savedJson) {
+      const parsedTodos = JSON.parse(savedJson);
+      console.log(`[STORAGE DEBUG] Verification: saved ${parsedTodos.length} todos, completed count: ${parsedTodos.filter((t: Todo) => t.isCompleted).length}`);
+      
+      if (savedJson !== todosJson) {
+        console.error('[STORAGE DEBUG] Storage verification failed: data mismatch');
+        // Try one more time with a delay
+        setTimeout(async () => {
+          await AsyncStorage.setItem(TODOS_STORAGE_KEY, todosJson);
+        }, 100);
+      }
+    } else {
+      console.error('[STORAGE DEBUG] Storage verification failed: no data retrieved');
+    }
   } catch (error) {
-    console.error('Error saving todos to storage:', error);
+    console.error('[STORAGE DEBUG] Error saving todos to storage:', error);
+    throw error; // Propagate the error
   }
 };
 
@@ -74,6 +136,15 @@ export const updateTodo = async (updatedTodo: Todo): Promise<void> => {
       
       // Save back to storage
       await saveTodos(todos);
+      
+      // Verify the todo was actually updated
+      const refreshedTodos = await getTodos();
+      const refreshedTodo = refreshedTodos.find(todo => todo.id === updatedTodo.id);
+      
+      if (!refreshedTodo || refreshedTodo.isCompleted !== updatedTodo.isCompleted) {
+        console.warn('Todo update verification failed, trying again');
+        await saveTodos(todos); // Try again
+      }
     } else {
       throw new Error(`Todo with id ${updatedTodo.id} not found`);
     }
@@ -86,20 +157,61 @@ export const updateTodo = async (updatedTodo: Todo): Promise<void> => {
 // Toggle todo completion status
 export const toggleTodoStatus = async (todoId: string): Promise<void> => {
   try {
+    console.log(`[STORAGE DEBUG] Toggling completion status for todo ID: ${todoId}`);
+    
+    // Get the latest todos directly from storage
     const todos = await getTodos();
     const todoIndex = todos.findIndex(todo => todo.id === todoId);
     
     if (todoIndex !== -1) {
+      // Log the current state
+      console.log(`[STORAGE DEBUG] Found todo at index ${todoIndex}, current completion status: ${todos[todoIndex].isCompleted}`);
+      
       // Toggle the isCompleted status
       todos[todoIndex].isCompleted = !todos[todoIndex].isCompleted;
+      console.log(`[STORAGE DEBUG] Changed completion status to: ${todos[todoIndex].isCompleted}`);
       
-      // Save back to storage
-      await saveTodos(todos);
+      // Save back to storage using direct AsyncStorage calls to ensure persistence
+      console.log('[STORAGE DEBUG] Saving updated todos directly');
+      const todosJson = JSON.stringify(todos);
+      
+      // Try multiple times if needed
+      let saved = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!saved && attempts < maxAttempts) {
+        attempts++;
+        try {
+          await AsyncStorage.setItem(TODOS_STORAGE_KEY, todosJson);
+          
+          // Verify the save
+          const checkJson = await AsyncStorage.getItem(TODOS_STORAGE_KEY);
+          if (checkJson === todosJson) {
+            saved = true;
+            console.log(`[STORAGE DEBUG] Successfully saved todos on attempt ${attempts}`);
+          } else {
+            console.warn(`[STORAGE DEBUG] Save verification failed on attempt ${attempts}`);
+            // Wait a bit before trying again
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (saveError) {
+          console.error(`[STORAGE DEBUG] Error saving on attempt ${attempts}:`, saveError);
+          // Wait a bit before trying again
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      if (!saved) {
+        console.error('[STORAGE DEBUG] All save attempts failed, throwing error');
+        throw new Error('Failed to save todo status after multiple attempts');
+      }
     } else {
+      console.error(`[STORAGE DEBUG] Todo with id ${todoId} not found`);
       throw new Error(`Todo with id ${todoId} not found`);
     }
   } catch (error) {
-    console.error('Error toggling todo status:', error);
+    console.error('[STORAGE DEBUG] Error toggling todo status:', error);
     throw error;
   }
 };

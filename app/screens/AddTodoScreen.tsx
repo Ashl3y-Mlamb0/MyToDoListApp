@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
+import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity, ImageBackground, Modal } from 'react-native';
 import { Text, TextInput, Button, HelperText, IconButton, useTheme, Surface, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -30,19 +30,48 @@ const AddTodoScreen = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [titleError, setTitleError] = useState('');
+  const [descriptionError, setDescriptionError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priority, setPriority] = useState('medium'); // 'high', 'medium', 'low'
   const [deadline, setDeadline] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // Custom alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
   const theme = useTheme();
 
+  // Custom alert function
+  const showCustomAlert = (message: string) => {
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
+
+  const hideCustomAlert = () => {
+    setAlertVisible(false);
+  };
+
   const validateForm = (): boolean => {
+    let isValid = true;
+    
     if (!title.trim()) {
       setTitleError('Title is required');
-      return false;
+      showCustomAlert('Task title cannot be empty');
+      isValid = false;
+    } else {
+      setTitleError('');
     }
-    setTitleError('');
-    return true;
+
+    if (!description.trim()) {
+      setDescriptionError('Description is required');
+      if (isValid) { // Only show this alert if title is valid
+        showCustomAlert('Task description cannot be empty');
+      }
+      isValid = false;
+    } else {
+      setDescriptionError('');
+    }
+    
+    return isValid;
   };
 
   const handleGoBack = () => {
@@ -53,7 +82,7 @@ const AddTodoScreen = () => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Success', message);
+      showCustomAlert(message);
     }
   };
 
@@ -72,13 +101,17 @@ const AddTodoScreen = () => {
         deadline: deadline ? deadline.toISOString() : undefined,
       });
 
-      showToast('Todo added successfully');
+      // Show success message but don't navigate away
+      showToast('Task added successfully');
       
-      // Return to the previous screen
-      handleGoBack();
+      // Clear form for the next task
+      setTitle('');
+      setDescription('');
+      setDeadline(null);
+      setPriority('medium');
     } catch (error) {
       console.error('Error adding todo:', error);
-      showToast('Error adding todo');
+      showToast('Error adding task');
     } finally {
       setIsSubmitting(false);
     }
@@ -123,6 +156,40 @@ const AddTodoScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={customColors.primary} />
       
+      {/* Custom Alert Modal */}
+      <Modal
+        transparent={true}
+        visible={alertVisible}
+        animationType="fade"
+        onRequestClose={hideCustomAlert}
+      >
+        <View style={styles.modalOverlay}>
+          <Surface style={styles.alertContainer}>
+            <LinearGradient
+              colors={[customColors.gradientStart, customColors.gradientEnd]}
+              style={styles.alertHeader}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.alertTitle}>
+                {alertMessage.includes('empty') ? 'Required Field' : 'Success'}
+              </Text>
+            </LinearGradient>
+            <View style={styles.alertContent}>
+              <Text style={styles.alertMessage}>{alertMessage}</Text>
+              <Button 
+                mode="contained" 
+                onPress={hideCustomAlert} 
+                style={[styles.alertButton, { backgroundColor: customColors.primary }]}
+                labelStyle={{ color: '#FFFFFF' }}
+              >
+                OK
+              </Button>
+            </View>
+          </Surface>
+        </View>
+      </Modal>
+
       {/* Header with gradient */}
       <LinearGradient
         colors={[customColors.gradientStart, customColors.gradientEnd]}
@@ -196,7 +263,10 @@ const AddTodoScreen = () => {
               </View>
               <TextInput
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={(text) => {
+                  setDescription(text);
+                  if (text.trim()) setDescriptionError('');
+                }}
                 mode="outlined"
                 outlineColor={customColors.inputBorder}
                 activeOutlineColor={customColors.primary}
@@ -205,11 +275,17 @@ const AddTodoScreen = () => {
                   styles.textArea, 
                   { backgroundColor: customColors.inputBackground }
                 ]}
+                error={!!descriptionError}
                 multiline
                 numberOfLines={4}
                 placeholder="Add details about your task..."
                 placeholderTextColor={customColors.disabled}
               />
+              {!!descriptionError && (
+                <HelperText type="error" visible={!!descriptionError}>
+                  {descriptionError}
+                </HelperText>
+              )}
             </View>
 
             <Divider style={styles.divider} />
@@ -321,7 +397,7 @@ const AddTodoScreen = () => {
                 icon="check"
                 labelStyle={{ color: '#FFFFFF' }}
                 contentStyle={styles.buttonContent}
-                disabled={isSubmitting || !title.trim()}
+                disabled={isSubmitting}
                 loading={isSubmitting}
               >
                 Save Task
@@ -493,6 +569,51 @@ const styles = StyleSheet.create({
     backgroundColor: customColors.inputBorder,
     marginVertical: 16,
     marginHorizontal: 8,
+  },
+  // Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  alertContainer: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3.84,
+  },
+  alertHeader: {
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  alertContent: {
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  alertMessage: {
+    fontSize: 16,
+    color: customColors.textPrimary,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  alertButton: {
+    minWidth: 100,
+    borderRadius: 8,
+    elevation: 2,
   },
 });
 

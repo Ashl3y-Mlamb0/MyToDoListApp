@@ -140,7 +140,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggleComplete, onDelete }:
               {todo.title}
             </Text>
             
-            {todo.description && (
+            {todo.description && expanded && (
               <Text 
                 style={[
                   styles.description,

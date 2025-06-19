@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, ToastAndroid, Platform, Alert, SafeAreaView, StatusBar, KeyboardAvoidingView, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator, Animated } from 'react-native';
 import { Text, TextInput, Button, HelperText, IconButton, useTheme, Surface, Divider, Chip } from 'react-native-paper';
 import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -37,6 +37,10 @@ const AddTodoScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [category, setCategory] = useState('General'); // Add category state
   const theme = useTheme();
+  const [validationAttempted, setValidationAttempted] = useState(false);
+  const titleInputRef = useRef<any>(null);
+  const shakeAnimation = useRef(new Animated.Value(0)).current;
+  const buttonShakeAnimation = useRef(new Animated.Value(0)).current;
   
   // AI-related states
   const [isAILoading, setIsAILoading] = useState(false);
@@ -44,12 +48,45 @@ const AddTodoScreen = () => {
   const { isEnabled, getPriorityForTask, getDueDateForTask, getCategoryForTask } = useAI();
 
   const validateForm = (): boolean => {
+    setValidationAttempted(true);
+    
     if (!title.trim()) {
-      setTitleError('Title is required');
+      setTitleError('Oops! Don\'t forget to name your task.');
+      // Animate the shake effect for input
+      Animated.sequence([
+        Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnimation, { toValue: -10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true })
+      ]).start();
+      
+      // Animate the shake effect for button
+      Animated.sequence([
+        Animated.timing(buttonShakeAnimation, { toValue: 5, duration: 50, useNativeDriver: true }),
+        Animated.timing(buttonShakeAnimation, { toValue: -5, duration: 50, useNativeDriver: true }),
+        Animated.timing(buttonShakeAnimation, { toValue: 5, duration: 50, useNativeDriver: true }),
+        Animated.timing(buttonShakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true })
+      ]).start();
+      
+      // Focus on the title input
+      if (titleInputRef.current) {
+        titleInputRef.current.focus();
+      }
+      
       return false;
     }
+    
     setTitleError('');
     return true;
+  };
+
+  const clearForm = () => {
+    setTitle('');
+    setDescription('');
+    setDeadline(null);
+    setPriority('medium');
+    setCategory('General');
+    setValidationAttempted(false);
   };
 
   const handleGoBack = () => {
@@ -80,13 +117,18 @@ const AddTodoScreen = () => {
         category,
       });
 
-      showToast('Todo added successfully');
+      showToast('Task added successfully');
       
-      // Return to the previous screen
-      handleGoBack();
+      // Clear the form instead of going back
+      clearForm();
+      
+      // Focus back on title input for the next task
+      if (titleInputRef.current) {
+        setTimeout(() => titleInputRef.current.focus(), 100);
+      }
     } catch (error) {
       console.error('Error adding todo:', error);
-      showToast('Error adding todo');
+      showToast('Error adding task');
     } finally {
       setIsSubmitting(false);
     }
@@ -240,22 +282,43 @@ const AddTodoScreen = () => {
                 />
                 <Text style={styles.label}>Task Title</Text>
               </View>
-              <TextInput
-                value={title}
-                onChangeText={(text) => {
-                  setTitle(text);
-                  if (text.trim()) setTitleError('');
-                }}
-                mode="outlined"
-                outlineColor={customColors.inputBorder}
-                activeOutlineColor={customColors.primary}
-                style={[styles.input, { backgroundColor: customColors.inputBackground }]}
-                error={!!titleError}
-                placeholder="What do you need to do?"
-                placeholderTextColor={customColors.disabled}
-              />
+              <Animated.View style={{ transform: [{ translateX: shakeAnimation }] }}>
+                <TextInput
+                  ref={titleInputRef}
+                  value={title}
+                  onChangeText={(text) => {
+                    setTitle(text);
+                    if (validationAttempted && text.trim()) {
+                      setTitleError('');
+                    }
+                  }}
+                  mode="outlined"
+                  outlineColor={titleError ? customColors.error : customColors.inputBorder}
+                  activeOutlineColor={titleError ? customColors.error : customColors.primary}
+                  style={[styles.input, { backgroundColor: customColors.inputBackground }]}
+                  error={!!titleError}
+                  placeholder="What do you need to do?"
+                  placeholderTextColor={customColors.disabled}
+                  theme={{ colors: { text: customColors.textPrimary } }}
+                  accessibilityLabel="Task title input"
+                  accessibilityHint="Enter the title of your task"
+                  right={title.length > 0 ? 
+                    <TextInput.Icon 
+                      icon="close-circle" 
+                      color={customColors.disabled} 
+                      onPress={() => setTitle('')}
+                      forceTextInputFocus={false}
+                    /> : undefined
+                  }
+                />
+              </Animated.View>
               {!!titleError && (
-                <HelperText type="error" visible={!!titleError}>
+                <HelperText 
+                  type="error" 
+                  visible={!!titleError}
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite"
+                >
                   {titleError}
                 </HelperText>
               )}
@@ -283,6 +346,7 @@ const AddTodoScreen = () => {
                   styles.textArea, 
                   { backgroundColor: customColors.inputBackground }
                 ]}
+                theme={{ colors: { text: customColors.textPrimary } }}
                 multiline
                 numberOfLines={4}
                 placeholder="Add details about your task..."
@@ -444,40 +508,43 @@ const AddTodoScreen = () => {
                 </Chip>
               )}
             </View>
-
-            <Divider style={styles.divider} />
-
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              <Button 
-                mode="outlined" 
-                onPress={handleGoBack} 
-                style={[styles.button, styles.cancelButton]}
-                labelStyle={{ color: customColors.textPrimary }}
-                contentStyle={styles.buttonContent}
-              >
-                Cancel
-              </Button>
-              <Button 
-                mode="contained" 
-                onPress={handleSave} 
-                style={[
-                  styles.button, 
-                  styles.saveButton, 
-                  { backgroundColor: customColors.primary }
-                ]}
-                icon="check"
-                labelStyle={{ color: '#FFFFFF' }}
-                contentStyle={styles.buttonContent}
-                disabled={isSubmitting || !title.trim()}
-                loading={isSubmitting}
-              >
-                Save Task
-              </Button>
-            </View>
           </Surface>
+          
+          {/* Add some bottom padding to ensure content isn't hidden behind sticky footer */}
+          <View style={{ height: 80 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      {/* Sticky Footer */}
+      <Surface style={styles.stickyFooter}>
+        <Button 
+          mode="outlined" 
+          onPress={handleGoBack} 
+          style={styles.footerButton}
+          labelStyle={{ color: customColors.textPrimary }}
+          contentStyle={styles.buttonContent}
+          icon="close"
+        >
+          Cancel
+        </Button>
+        <Animated.View style={{ transform: [{ translateX: buttonShakeAnimation }], flex: 1 }}>
+          <Button 
+            mode="contained" 
+            onPress={handleSave} 
+            style={[
+              styles.footerButton,
+              { backgroundColor: customColors.primary }
+            ]}
+            icon="check"
+            labelStyle={{ color: '#FFFFFF' }}
+            contentStyle={styles.buttonContent}
+            disabled={isSubmitting}
+            loading={isSubmitting}
+          >
+            Save Task
+          </Button>
+        </Animated.View>
+      </Surface>
     </SafeAreaView>
   );
 };
@@ -611,9 +678,11 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     borderColor: customColors.inputBorder,
+    width: '48%',
   },
   saveButton: {
     elevation: 4,
+    width: '100%',
   },
   datePickerButton: {
     flexDirection: 'row',
@@ -699,6 +768,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: customColors.primary,
     fontWeight: '500',
+  },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: customColors.inputBorder,
+    backgroundColor: '#FFFFFF',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12, // Add padding for iOS home indicator
+  },
+  footerButton: {
+    flex: 1,
+    marginHorizontal: 8,
+    borderRadius: 8,
   },
 });
 

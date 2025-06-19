@@ -4,7 +4,7 @@ import { Text, TextInput, Button, HelperText, IconButton, useTheme, Surface, Div
 import { router, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getTodoById, updateTodo } from '../services/storage';
+import { getTodoById, updateTodo, Todo } from '../services/storage';
 
 // Custom theme colors
 const customColors = {
@@ -147,10 +147,9 @@ const EditTodoScreen = () => {
         title: title.trim(),
         description: description.trim(),
         isCompleted,
-        createdAt: new Date().toISOString(), // This will be overwritten by the existing one
         priority,
         deadline: deadline ? deadline.toISOString() : undefined,
-      });
+      } as Todo);
 
       showToast('Todo updated successfully');
       
@@ -262,6 +261,7 @@ const EditTodoScreen = () => {
                 error={!!titleError}
                 placeholder="What do you need to do?"
                 placeholderTextColor={customColors.disabled}
+                theme={{ colors: { text: customColors.textPrimary } }}
               />
               {!!titleError && (
                 <HelperText type="error" visible={!!titleError}>
@@ -296,6 +296,7 @@ const EditTodoScreen = () => {
                 numberOfLines={4}
                 placeholder="Add details about your task..."
                 placeholderTextColor={customColors.disabled}
+                theme={{ colors: { text: customColors.textPrimary } }}
               />
             </View>
 
@@ -445,38 +446,41 @@ const EditTodoScreen = () => {
 
             <Divider style={styles.divider} />
 
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              <Button 
-                mode="outlined" 
-                onPress={handleGoBack} 
-                style={[styles.button, styles.cancelButton]}
-                labelStyle={{ color: customColors.textPrimary }}
-                contentStyle={styles.buttonContent}
-                icon="close"
-              >
-                Cancel
-              </Button>
-              <Button 
-                mode="contained" 
-                onPress={handleSave} 
-                style={[
-                  styles.button, 
-                  styles.saveButton, 
-                  { backgroundColor: customColors.primary }
-                ]}
-                icon="content-save"
-                labelStyle={{ color: '#FFFFFF' }}
-                contentStyle={styles.buttonContent}
-                disabled={isSubmitting || !title.trim()}
-                loading={isSubmitting}
-              >
-                Save Task
-              </Button>
-            </View>
           </Surface>
+          
+          {/* Add some bottom padding to ensure content isn't hidden behind sticky footer */}
+          <View style={{ height: 80 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      {/* Sticky Footer */}
+      <Surface style={styles.stickyFooter}>
+        <Button 
+          mode="outlined" 
+          onPress={handleGoBack} 
+          style={styles.footerButton}
+          labelStyle={{ color: customColors.textPrimary }}
+          contentStyle={styles.buttonContent}
+          icon="close"
+        >
+          Cancel
+        </Button>
+        <Button 
+          mode="contained" 
+          onPress={handleSave} 
+          style={[
+            styles.footerButton,
+            { backgroundColor: customColors.primary }
+          ]}
+          icon="check"
+          labelStyle={{ color: '#FFFFFF' }}
+          contentStyle={styles.buttonContent}
+          disabled={isSubmitting}
+          loading={isSubmitting}
+        >
+          Save Changes
+        </Button>
+      </Surface>
     </SafeAreaView>
   );
 };
@@ -552,12 +556,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
   },
   loadingText: {
     fontSize: 16,
-    color: customColors.textPrimary,
-    marginTop: 12,
+    color: customColors.textSecondary,
+    marginTop: 16,
   },
   formContainer: {
     marginHorizontal: 16,
@@ -579,6 +582,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   inputIcon: {
     margin: 0,
     padding: 0,
@@ -598,6 +607,10 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
   },
+  priorityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   statusContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -607,42 +620,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     borderRadius: 8,
   },
-  priorityContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   priorityButton: {
     flex: 1,
     marginHorizontal: 4,
     borderRadius: 8,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 28,
-  },
-  button: {
-    width: '48%',
-    borderRadius: 8,
-  },
   buttonContent: {
     paddingVertical: 8,
   },
-  cancelButton: {
-    borderColor: customColors.inputBorder,
-  },
-  saveButton: {
-    elevation: 4,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
   clearButton: {
-    marginTop: -4,
-    marginRight: -8,
+    margin: 0,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: customColors.inputBorder,
+    marginVertical: 16,
+    marginHorizontal: 8,
   },
   datePickerButton: {
     flexDirection: 'row',
@@ -665,11 +658,30 @@ const styles = StyleSheet.create({
   calendarIcon: {
     margin: 0,
   },
-  divider: {
-    height: 1,
-    backgroundColor: customColors.inputBorder,
-    marginVertical: 16,
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: customColors.inputBorder,
+    backgroundColor: '#FFFFFF',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12, // Add padding for iOS home indicator
+  },
+  footerButton: {
+    flex: 1,
     marginHorizontal: 8,
+    borderRadius: 8,
   },
 });
 

@@ -169,6 +169,7 @@ const LoginScreen = () => {
                 style={styles.input}
                 mode="outlined"
                 autoCapitalize="none"
+                theme={{ colors: { text: customColors.textPrimary } }}
               />
             )}
             
@@ -180,6 +181,7 @@ const LoginScreen = () => {
               mode="outlined"
               keyboardType="email-address"
               autoCapitalize="none"
+              theme={{ colors: { text: customColors.textPrimary } }}
             />
             
             <TextInput
@@ -189,6 +191,7 @@ const LoginScreen = () => {
               style={styles.input}
               mode="outlined"
               secureTextEntry
+              theme={{ colors: { text: customColors.textPrimary } }}
             />
             
             <Button
